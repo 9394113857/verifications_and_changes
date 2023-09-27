@@ -146,7 +146,7 @@ def register():
             session['username'] = username
             session['phone_number'] = phonenumber
 
-            api.phones.verification_start(phonenumber, country_code='US', via='sms')
+            api.phones.verification_start(phonenumber, country_code='91', via='sms')
 
             return redirect(url_for('phone_verification'))
     elif request.method == 'POST':
@@ -262,21 +262,37 @@ def verify():
 def password_reset():
     if request.method == 'POST':
         if 'username' in request.form and 'email' in request.form:
-            username = request.form['username']
+            user_name = request.form['username']
             user_email = request.form['email']
             # Establish a connection to your SQLite database file.
             connection = sqlite3.connect("verfications_database.db")
             # Create a cursor using the connection.
             cursor = connection.cursor()
-            cursor.execute("SELECT * FROM accounts WHERE (username = %s AND email = %s)", (username, user_email))
+            cursor.execute("SELECT * FROM accounts WHERE username = ? AND email = ?", (user_name, user_email))
             details = cursor.fetchone()
             if details is None:
-                return ({"message": "Invalid username or phone number"}), 401
+                return ({"message": "Invalid username or email address"}), 401
             else:
                 # api.phones.verification_start(phonenumber, country_code='91', via='sms')  # Hardcoded values, via='call'  via='sms'
-
-                session['username'] = username
+                session['username'] = user_name
                 session['user_email'] = user_email
+
+                # Generate a new 6-digit OTP
+                otp = ''.join([str(randint(0, 9)) for _ in range(6)])
+
+                # Store the OTP in the session for later validation
+                session['user_otp'] = otp
+
+                # Customize the email message with your website name and a message
+                email_message = f"Hello, This is TestSite.com. You are receiving this email to verify your account. Your OTP is below:<br><br>"
+                email_message += f'<h1 style="color: red; font-size: 36px; font-weight: bold;">{otp}</h1>'
+                email_message += "<br><br>Please use this OTP to validate your account on TestSite.com."
+
+                # Create a message containing the customized email message and send it to the specified email
+                msg = Message(subject='OTP Verification for TestSite.com', sender='TestSite.com', recipients=[user_email])
+                msg.html = email_message
+                mail.send(msg)
+
                 return redirect(url_for('password_reset_verification'))
         else:
             return ({"message": "Invalid request"}), 400
@@ -284,19 +300,18 @@ def password_reset():
     # Display the form for GET requests
     return render_template('password_reset.html')
 
+
 @app.route("/password_reset_verification", methods=["GET", "POST"])
 def password_reset_verification():
     if request.method == "POST":
-        phone_number = session.get("phone_number")
-        country_code = 91
-        token = request.form.get("token")
 
-        # Check verification
-        verification = api.phones.verification_check(phone_number,
-                                                     country_code,
-                                                     token)
+        user_otp = request.form.get("token")
 
-        if verification.ok():
+        # Retrieve the stored OTP from the session
+        stored_otp = session.get('user_otp')
+
+        # Check if the user-entered OTP matches the stored OTP
+        if user_otp == stored_otp:
             return redirect(url_for('display_reset_password'))
         else:
             error_message = "Invalid verification code. Please try again."
@@ -323,7 +338,7 @@ def reset_password():
             connection = sqlite3.connect("verfications_database.db")
             # Create a cursor using the connection.
             cursor = connection.cursor()
-            cursor.execute("UPDATE accounts SET password = %s WHERE username = %s", (hashed_password, username))
+            cursor.execute("UPDATE accounts SET password = ? WHERE username = ?", (hashed_password, username))
             connection.commit()
 
             return redirect(url_for('login'))
