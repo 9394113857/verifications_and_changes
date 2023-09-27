@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Phone Verification</title>
+
+    <link rel="stylesheet" media="all" href="https://cdnjs.cloudflare.com/ajax/libs/authy-form-helpers/2.3/form.authy.min.css" data-turbolinks-track="reload" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/authy-form-helpers/2.3/form.authy.min.js" data-turbolinks-track="reload"></script>
+
+    <style>
+        .live-time {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Live Time Display -->
+    <div class="live-time" id="live-time"></div>
+
+    <h1>Verify your email address</h1>
+    <form action="/phone_verification" accept-charset="UTF-8" method="post">
+        Email:<input type="email" name="email">
+        <button name="button" type="submit">Verify</button>
+    </form>
+
+    <script>
+        function updateLiveTime() {
+            const liveTimeElement = document.getElementById('live-time');
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const formattedTime = `Current Time: ${hours}:${minutes}:${seconds}`;
+            liveTimeElement.textContent = formattedTime;
+            setTimeout(updateLiveTime, 1000); // Update every second
+        }
+
+        document.addEventListener('DOMContentLoaded', updateLiveTime);
+    </script>
+</body>
+
+</html>

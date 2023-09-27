@@ -1,0 +1,14 @@
+# Ignore Python Flask libraries
+venv/         # If you have a virtual environment folder
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore specific files
+config.ini
+verfications_database.db
+
+# Add any other files or directories you want to ignore here
+# For example, to ignore a directory named "data", you can add:
+# data/

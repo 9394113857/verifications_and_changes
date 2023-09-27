@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.1/css/all.css">
+    <style>
+        .live-time {
+            font-size: 20px;
+            font-weight: bold; /* Make it bold */
+            text-align: center; /* Center align */
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body class="loggedin">
+    <nav class="navtop">
+        <div>
+            <h1>Login And Registration Form</h1>
+            <a href="{{ url_for('home') }}"><i class="fas fa-home"></i>Home</a>
+            <a href="{{ url_for('profile') }}"><i class="fas fa-user-circle"></i>Profile</a>
+            <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i>Logout</a>
+        </div>
+    </nav>
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+    <div class="live-time" id="live-time"></div>
+
+    <script>
+        function updateLiveTime() {
+            const liveTimeElement = document.getElementById('live-time');
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const formattedTime = `Current Time: ${hours}:${minutes}:${seconds}`;
+            liveTimeElement.textContent = formattedTime;
+            setTimeout(updateLiveTime, 1000); // Update every second
+        }
+
+        document.addEventListener('DOMContentLoaded', updateLiveTime);
+    </script>
+</body>
+</html>
