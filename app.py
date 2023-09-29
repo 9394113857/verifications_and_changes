@@ -72,6 +72,52 @@ def create_password_history_table():
 # Call this function to create the new table
 create_password_history_table()
 
+# Create a new table to track location history
+def create_location_history_table():
+    conn = sqlite3.connect('verfications_database.db')
+    c = conn.cursor()
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS location_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            latitude REAL,
+            longitude REAL,
+            access_granted BOOLEAN DEFAULT FALSE,
+            timestamp DATETIME,
+            FOREIGN KEY (user_id) REFERENCES accounts (id)
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+# Call this function to create the new table
+create_location_history_table()
+
+# Create a new table to track login/logout history
+def create_login_history_table():
+    conn = sqlite3.connect('verfications_database.db')
+    c = conn.cursor()
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS login_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            device_info TEXT,
+            login_timestamp DATETIME,
+            logout_timestamp DATETIME,
+            FOREIGN KEY (user_id) REFERENCES accounts (id)
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+# Call this function to create the new table
+create_login_history_table()
+
+
 # Configure email settings for sending OTP
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 465
@@ -128,6 +174,18 @@ def login():
             flash('Incorrect username/password!')
 
     return render_template('index.html', title="Login")
+
+
+# Function to log login history
+def log_login_history(user_id, device_info):
+    connection = sqlite3.connect("verfications_database.db")
+    cursor = connection.cursor()
+    login_timestamp = datetime.datetime.now()
+    cursor.execute(
+        "INSERT INTO login_history (user_id, device_info, login_timestamp) VALUES (?, ?, ?)",
+        (user_id, device_info, login_timestamp))
+    connection.commit()
+    connection.close()
 
 
 @app.route('/pythonlogin/register', methods=['GET', 'POST'])
@@ -198,18 +256,44 @@ def register():
 
 @app.route('/pythonlogin/logout')
 def logout():
-    session.pop('loggedin', None)
-    session.pop('id', None)
-    session.pop('username', None)
+    if 'loggedin' in session:
+        # Log the logout timestamp
+        user_id = session.get('id')
+        device_info = request.user_agent.string
+        logout_timestamp = datetime.datetime.now()
+
+        connection = sqlite3.connect("verfications_database.db")
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO login_history (user_id, device_info, login_timestamp, logout_timestamp) VALUES (?, ?, ?, ?)",
+            (user_id, device_info, session.get('login_time'), logout_timestamp))
+        connection.commit()
+        connection.close()
+
+        session.pop('loggedin', None)
+        session.pop('id', None)
+        session.pop('username', None)
+        return redirect(url_for('login'))
     return redirect(url_for('login'))
 
 
 @app.route('/pythonlogin/home')
 def home():
     if 'loggedin' in session:
+        # Log the login timestamp
+        session['login_time'] = datetime.datetime.now()
+
+        # Retrieve the user's ID
+        user_id = session.get('id')
+
+        # Retrieve the user's device information
+        device_info = request.user_agent.string
+
+        # Log the login history
+        log_login_history(user_id, device_info)
+
         return render_template('home.html', username=session['username'])
     return redirect(url_for('login'))
-
 
 @app.route('/pythonlogin/profile')
 def profile():
