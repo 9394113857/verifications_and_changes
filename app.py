@@ -1,4 +1,5 @@
 import configparser  # Added to read the configuration file
+import datetime
 import re
 import sqlite3
 from random import randint
@@ -50,6 +51,26 @@ def create_database():
     conn.commit()
     conn.close()
 
+# Create a new table to track password changes
+def create_password_history_table():
+    conn = sqlite3.connect('verfications_database.db')
+    c = conn.cursor()
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS password_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            password_hash TEXT,
+            change_timestamp DATETIME,
+            FOREIGN KEY (user_id) REFERENCES accounts (id)
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+# Call this function to create the new table
+create_password_history_table()
 
 # Configure email settings for sending OTP
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
@@ -94,7 +115,11 @@ def login():
                     session['id'] = details[0]  # Assuming ID is at index 0 in the tuple
                     session['username'] = details[1]  # Assuming username is at index 1 in the tuple
 
-                    return redirect(url_for('home'))
+                    # Check if it's time for the user to change their password
+                    if is_password_change_required(session['id']):
+                        return redirect(url_for('change_password'))
+                    else:
+                        return redirect(url_for('home'))
                 else:
                     flash('Incorrect username/password!')
             else:
@@ -365,6 +390,86 @@ def reset_password():
         return {"message": "Invalid request"}, 400
 
 
+# Function to check if a password change is required for a user
+def is_password_change_required(user_id):
+    # Add your logic here to determine if the user needs to change their password
+    # For example, you can check the timestamp of the last password change and
+    # compare it to a certain time interval to decide if a change is required.
+
+    # For demonstration purposes, let's assume password change is required every 90 days.
+    # You should adjust this logic based on your requirements and database schema.
+
+    connection = sqlite3.connect("verfications_database.db")
+    cursor = connection.cursor()
+    cursor.execute(
+        "SELECT change_timestamp FROM password_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 1",
+        (user_id,))
+    last_password_change = cursor.fetchone()
+
+    if last_password_change:
+        last_change_date = datetime.datetime.strptime(last_password_change[0], "%Y-%m-%d %H:%M:%S")
+        current_date = datetime.datetime.now()
+        delta = current_date - last_change_date
+        connection.close()
+
+        # Check if it's been more than 90 days since the last password change
+        if delta.days > 90:
+            return True
+
+    return False
+
+# Function to check if a password is in the password history
+def is_password_in_history(user_id, new_password):
+    connection = sqlite3.connect("verfications_database.db")
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT password_hash FROM password_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 5", (user_id,))
+    previous_password_hashes = cursor.fetchall()
+
+    connection.close()
+
+    for password_hash in previous_password_hashes:
+        if check_password_hash(password_hash[0], new_password):
+            return True
+
+    return False
+
+@app.route('/change_password', methods=['GET', 'POST'])
+def change_password():
+    if 'loggedin' in session:
+        if request.method == 'POST':
+            if 'new_password' in request.form and 'confirm_password' in request.form:
+                new_password = request.form['new_password']
+                confirm_password = request.form['confirm_password']
+
+                if new_password == confirm_password:
+                    user_id = session['id']
+
+                    # Check if the new password is not in the password history
+                    if not is_password_in_history(user_id, new_password):
+                        hashed_password = generate_password_hash(new_password)
+
+                        # Update the password in the 'accounts' table
+                        connection = sqlite3.connect("verfications_database.db")
+                        cursor = connection.cursor()
+                        cursor.execute("UPDATE accounts SET password = ? WHERE id = ?", (hashed_password, user_id))
+
+                        # Insert the new password into the 'password_history' table
+                        cursor.execute("INSERT INTO password_history (user_id, password) VALUES (?, ?)", (user_id, new_password))
+
+                        connection.commit()
+                        connection.close()
+
+                        return redirect(url_for('home'))
+                    else:
+                        flash("You cannot reuse a previous password!")
+                else:
+                    flash("Passwords do not match!")
+            else:
+                flash("Invalid request!")
+
+        return render_template('change_password.html', title="Change Password")
+    return redirect(url_for('login'))
 
 
 ###############
