@@ -107,6 +107,7 @@ def create_login_history_table():
             device_info TEXT,
             login_timestamp DATETIME,
             logout_timestamp DATETIME,
+            ip_address TEXT,  -- Add the ip_address column as TEXT
             FOREIGN KEY (user_id) REFERENCES accounts (id)
         )
     ''')
@@ -117,8 +118,9 @@ def create_login_history_table():
 # Call this function to create the new table
 create_login_history_table()
 
+# Configure email settings for sending OTP# Call this function to create the new table
+create_location_history_table()
 
-# Configure email settings for sending OTP
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 465
 app.config["MAIL_USERNAME"] = config['email']['USERNAME']
@@ -181,9 +183,13 @@ def log_login_history(user_id, device_info):
     connection = sqlite3.connect("verfications_database.db")
     cursor = connection.cursor()
     login_timestamp = datetime.datetime.now()
+
+    # Get the user's IP address from the request
+    user_ip = request.remote_addr
+
     cursor.execute(
-        "INSERT INTO login_history (user_id, device_info, login_timestamp) VALUES (?, ?, ?)",
-        (user_id, device_info, login_timestamp))
+        "INSERT INTO login_history (user_id, device_info, login_timestamp, ip_address) VALUES (?, ?, ?, ?)",
+        (user_id, device_info, login_timestamp, user_ip))
     connection.commit()
     connection.close()
 
@@ -606,7 +612,8 @@ def change_password():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
 
     # # Check if a custom port was provided as a command-line argument
     # if len(sys.argv) > 1:
