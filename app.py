@@ -2,9 +2,10 @@ import configparser  # Added to read the configuration file
 import re
 import sqlite3
 from random import randint
+from zxcvbn import zxcvbn
 
 from authy.api import AuthyApiClient
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_jwt_extended import JWTManager
 from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -68,7 +69,6 @@ jwt = JWTManager(app)
 @app.route('/login', methods=['GET', 'POST'])
 @app.route('/', methods=['GET', 'POST'])
 def login():
-    # Your code for handling GET and POST requests here
     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
         username = request.form['username']
         password = request.form['password']
@@ -85,22 +85,22 @@ def login():
         details = cursor.fetchone()
 
         if details is not None:
-            hashed_password = details[2]  # Assuming password is at index 2 in the tuple
-            password_match = check_password_hash(hashed_password, password)
+            if details[7]:  # Check if the email is registered and verified
+                hashed_password = details[2]  # Assuming password is at index 2 in the tuple
+                password_match = check_password_hash(hashed_password, password)
 
-            if password_match:
-                session['loggedin'] = True
-                session['id'] = details[0]  # Assuming ID is at index 0 in the tuple
-                session['username'] = details[1]  # Assuming username is at index 1 in the tuple
+                if password_match:
+                    session['loggedin'] = True
+                    session['id'] = details[0]  # Assuming ID is at index 0 in the tuple
+                    session['username'] = details[1]  # Assuming username is at index 1 in the tuple
 
-                if not details[7]:  # Assuming email_verified is at index 7 in the tuple
-                    return redirect(url_for('phone_verification'))
-
-                return redirect(url_for('home'))
+                    return redirect(url_for('home'))
+                else:
+                    flash('Incorrect username/password!')
             else:
-                msg = 'Incorrect username/password!'
+                flash('Email is not registered or not verified. Please use a registered and verified email.')
         else:
-            msg = 'Incorrect username/password!'
+            flash('Incorrect username/password!')
 
     return render_template('index.html', title="Login")
 
@@ -108,50 +108,67 @@ def login():
 @app.route('/pythonlogin/register', methods=['GET', 'POST'])
 def register():
     msg = ''
-    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form \
-            and 'firstname' in request.form and 'lastname' in request.form and 'phonenumber' in request.form:
+    if request.method == 'POST':
+        # Retrieve form data
         username = request.form['username']
         password = request.form['password']
-        hassedpassword = generate_password_hash(password)
         email = request.form['email']
         firstname = request.form['firstname']
         lastname = request.form['lastname']
-        phonenumber = request.form['phonenumber']
+        phonenumber = request.form.get('phonenumber')  # Get phone number (may be None)
 
-        # Establish a connection to your SQLite database file.
+        # Check password strength using zxcvbn
+        password_strength = zxcvbn(password)
+
+        # Check if the username already exists in the database
         connection = sqlite3.connect("verfications_database.db")
-        # Create a cursor using the connection.
         cursor = connection.cursor()
         cursor.execute('SELECT * FROM accounts WHERE username = ?', (username,))
+        existing_username = cursor.fetchone()
 
-        account = cursor.fetchone()
+        # Check for duplicate email if provided
+        cursor.execute('SELECT * FROM accounts WHERE email = ?', (email,))
+        existing_email = cursor.fetchone()
 
-        if account:
-            msg = 'Account already exists!'
+        # Check for duplicate phone number if provided
+        existing_phonenumber = None
+        if phonenumber:
+            cursor.execute('SELECT * FROM accounts WHERE phonenumber = ?', (phonenumber,))
+            existing_phonenumber = cursor.fetchone()
+
+        if existing_username:
+            msg = 'Username already exists. Please choose a different username.'
+        elif existing_email:
+            msg = 'Email is already registered. Please use a different email.'
+        elif existing_phonenumber:
+            msg = 'Phone number already exists. Please choose a different phone number.'
+        elif password_strength['score'] < 3:
+            msg = 'Password is too weak. Please use a stronger password.'
         elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
             msg = 'Invalid email address!'
         elif not re.match(r'[A-Za-z0-9]+', username):
             msg = 'Username must contain only characters and numbers!'
-        elif not username or not password or not email or not firstname or not lastname or not phonenumber:
-            msg = 'Please fill out the form!'
+        elif not username or not password or not email or not firstname or not lastname:
+            msg = 'Please fill out the form.'
         else:
+            # Email, username, and phone number are not registered, proceed with registration
+            hashed_password = generate_password_hash(password)
             cursor.execute(
                 'INSERT INTO accounts(username, password, email, firstname, lastname, phonenumber, phone_verified) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?)',
-                (username, hassedpassword, email, firstname, lastname, phonenumber, False))
-
+                (username, hashed_password, email, firstname, lastname, phonenumber, False))
             connection.commit()
 
             session['registered'] = True
             session['username'] = username
-            session['phone_number'] = phonenumber
-
-            api.phones.verification_start(phonenumber, country_code='91', via='sms')
+            if phonenumber:
+                session['phone_number'] = phonenumber  # Store phone number if provided
 
             return redirect(url_for('phone_verification'))
-    elif request.method == 'POST':
-        msg = 'Please fill out the form!'
+
     return render_template('register.html', msg=msg)
+
+
 
 
 @app.route('/pythonlogin/logout')
