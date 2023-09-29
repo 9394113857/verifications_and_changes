@@ -3,8 +3,83 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<h2>Home Page</h2>
-{% if session.loggedin %}
-    <h3>Greetings {{session.username}}</h3>
-{% endif %}
+<div class="container">
+    <h2>Welcome to the Home Page</h2>
+    {% if session.loggedin %}
+        <div class="user-info">
+            <h3>Greetings, {{ session.username }}!</h3>
+            <p>You are logged in.</p>
+        </div>
+        <div class="location-access">
+            <h3>Location Access</h3>
+            <p>Click the button below to allow location access:</p>
+            <button id="allow-location" class="btn btn-primary">Allow Location Access</button>
+            <button id="deny-location" class="btn btn-danger">Deny Location Access</button>
+            <p id="location-status"></p>
+        </div>
+    {% else %}
+        <div class="not-logged-in">
+            <h3>You are not logged in</h3>
+            <p>Please <a href="{{ url_for('login') }}">log in</a> to access this page.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const allowLocationButton = document.getElementById('allow-location');
+        const denyLocationButton = document.getElementById('deny-location');
+        const locationStatus = document.getElementById('location-status');
+
+        allowLocationButton.addEventListener('click', function () {
+            if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+
+                    locationStatus.textContent = `Location granted: Latitude ${latitude}, Longitude ${longitude}`;
+
+                    // Send the latitude and longitude to the server via an AJAX request
+                    sendLocationToServer(latitude, longitude);
+                }, function (error) {
+                    locationStatus.textContent = `Location request denied: ${error.message}`;
+                });
+            } else {
+                locationStatus.textContent = 'Geolocation is not supported by your browser.';
+            }
+        });
+
+        denyLocationButton.addEventListener('click', function () {
+            locationStatus.textContent = 'Location access denied by the user.';
+        });
+    });
+
+    // JavaScript function to send location data to the server
+    function sendLocationToServer(latitude, longitude) {
+        // Create an XMLHttpRequest or use the fetch API to send the data to the server
+        // You can implement this based on your server-side logic
+        // Example using fetch API:
+        fetch('/store_location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ latitude, longitude }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Location data sent to the server successfully.');
+                    // You can perform any additional actions here
+                } else {
+                    console.error('Error sending location data to the server:', data.error);
+                    // Handle the error as needed
+                }
+            })
+            .catch(error => {
+                console.error('Error sending location data:', error);
+                // Handle the error as needed
+            });
+    }
+</script>
 {% endblock %}

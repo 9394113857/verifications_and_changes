@@ -6,7 +6,7 @@ from random import randint
 from zxcvbn import zxcvbn
 
 from authy.api import AuthyApiClient
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_jwt_extended import JWTManager
 from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -251,9 +251,6 @@ def register():
 
     return render_template('register.html', msg=msg)
 
-
-
-
 @app.route('/pythonlogin/logout')
 def logout():
     if 'loggedin' in session:
@@ -277,7 +274,7 @@ def logout():
     return redirect(url_for('login'))
 
 
-@app.route('/pythonlogin/home')
+@app.route('/pythonlogin/home', methods=['GET', 'POST'])
 def home():
     if 'loggedin' in session:
         # Log the login timestamp
@@ -292,8 +289,57 @@ def home():
         # Log the login history
         log_login_history(user_id, device_info)
 
-        return render_template('home.html', username=session['username'])
+        if request.method == 'POST':
+            if 'latitude' in request.form and 'longitude' in request.form:
+                latitude = request.form.get('latitude')  # Get latitude from the form
+                longitude = request.form.get('longitude')  # Get longitude from the form
+
+                if latitude and longitude:
+                    # Store the location in the database
+                    store_location_history(user_id, latitude, longitude)
+
+                    # Redirect to a success page or perform other actions
+                    return render_template('location_access_granted.html', username=session['username'])
+
+            # Handle the case where the user denied location access
+            return render_template('location_access_denied.html', username=session['username'])
+
+        else:
+            return render_template('home.html', username=session['username'])
+
     return redirect(url_for('login'))
+
+# Function to store location history in the database
+def store_location_history(user_id, latitude, longitude):
+    try:
+        connection = sqlite3.connect("verfications_database.db")
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO location_history (user_id, latitude, longitude, access_granted, timestamp) VALUES (?, ?, ?, ?, ?)",
+            (user_id, latitude, longitude, True, datetime.datetime.now()))
+        connection.commit()
+    except Exception as e:
+        print(str(e))
+    finally:
+        connection.close()
+
+@app.route('/store_location', methods=['POST'])
+def store_location():
+    if 'loggedin' in session:
+        try:
+            data = request.get_json()
+            latitude = data['latitude']
+            longitude = data['longitude']
+
+            # Store the location data in the database
+            store_location_history(session['id'], latitude, longitude)
+
+            return jsonify({"success": True})
+        except Exception as e:
+            print(str(e))
+            return jsonify({"success": False, "error": str(e)})
+    else:
+        return jsonify({"success": False, "error": "User not logged in"})
 
 @app.route('/pythonlogin/profile')
 def profile():
