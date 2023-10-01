@@ -3,29 +3,28 @@
 {% block title %}Profile{% endblock %}
 
 {% block content %}
-<h2>Profile Page</h2>
-<div>
-    <p>Your account details are below:</p>
-    <table>
+<div class="container">
+    <h2>User Profile</h2>
+    <table class="table table-bordered">
         <tr>
-            <td>Username:</td>
-            <td>{{ account['username'] }}</td>
+            <th>Username</th>
+            <td>{{ account[1] }}</td>  {# Assuming username is at index 1 in the tuple #}
         </tr>
         <tr>
-            <td>Email:</td>
-            <td>{{ account['email'] }}</td>
+            <th>Email</th>
+            <td>{{ account[3] }}</td>  {# Assuming email is at index 3 in the tuple #}
         </tr>
         <tr>
-            <td>First Name:</td>
-            <td>{{ account['firstname'] }}</td>
+            <th>First Name</th>
+            <td>{{ account[4] }}</td>  {# Assuming firstname is at index 4 in the tuple #}
         </tr>
         <tr>
-            <td>Last Name:</td>
-            <td>{{ account['lastname'] }}</td>
+            <th>Last Name</th>
+            <td>{{ account[5] }}</td>  {# Assuming lastname is at index 5 in the tuple #}
         </tr>
         <tr>
-            <td>Phone Number:</td>
-            <td>{{ account['phonenumber'] }}</td>
+            <th>Phone Number</th>
+            <td>{{ account[6] }}</td>  {# Assuming phonenumber is at index 6 in the tuple #}
         </tr>
     </table>
 </div>

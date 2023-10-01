@@ -407,10 +407,11 @@ def profile():
         account = cursor.fetchone()
 
         # Debugging: Print account data
-        print("Account Data:", account)
+        # print("Account Data:", account)
 
         return render_template('profile.html', account=account)
     return redirect(url_for('login'))
+
 
 
 @app.route("/phone_verification", methods=["GET", "POST"])
