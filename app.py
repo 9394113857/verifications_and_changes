@@ -3,8 +3,6 @@ import datetime
 import re
 import sqlite3
 from random import randint
-
-import requests
 from zxcvbn import zxcvbn
 
 from authy.api import AuthyApiClient
@@ -23,8 +21,6 @@ app.secret_key = 'your_secret_key'
 # Authy Configuration
 authy_api_key = config['authy']['API_KEY']
 api = AuthyApiClient(authy_api_key)
-
-API_KEY = config['currency_converter']['API_KEY']
 
 
 # SQLite Configuration
@@ -47,7 +43,9 @@ def create_database():
             phonenumber TEXT,
 
             email_verified BOOLEAN DEFAULT FALSE,
-            phone_verified BOOLEAN DEFAULT FALSE
+            phone_verified BOOLEAN DEFAULT FALSE,
+            
+            created_on DATETIME
         )
     ''')
 
@@ -55,6 +53,8 @@ def create_database():
     conn.commit()
     conn.close()
 
+# Create table called accounts:
+create_database()
 
 # Create a new table to track password changes
 def create_password_history_table():
@@ -74,10 +74,8 @@ def create_password_history_table():
     conn.commit()
     conn.close()
 
-
 # Call this function to create the new table
 create_password_history_table()
-
 
 # Create a new table to track location history
 def create_location_history_table():
@@ -99,10 +97,8 @@ def create_location_history_table():
     conn.commit()
     conn.close()
 
-
 # Call this function to create the new table
 create_location_history_table()
-
 
 # Create a new table to track login/logout history
 def create_login_history_table():
@@ -124,10 +120,25 @@ def create_login_history_table():
     conn.commit()
     conn.close()
 
-
 # Call this function to create the new table
 create_login_history_table()
 
+# Configure email settings for sending OTP# Call this function to create the new table
+create_location_history_table()
+
+app.config["MAIL_SERVER"] = 'smtp.gmail.com'
+app.config["MAIL_PORT"] = 465
+app.config["MAIL_USERNAME"] = config['email']['USERNAME']
+app.config['MAIL_PASSWORD'] = config['email']['PASSWORD']
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+
+# Initialize Flask-Mail
+mail = Mail(app)
+
+# Initialize the JWTManager
+app.config['JWT_SECRET_KEY'] = 'super-secret'
+jwt = JWTManager(app)
 
 @app.route('/login', methods=['GET', 'POST'])
 @app.route('/', methods=['GET', 'POST'])
@@ -199,6 +210,7 @@ def register():
         firstname = request.form['firstname']
         lastname = request.form['lastname']
         phonenumber = request.form.get('phonenumber')  # Get phone number (may be None)
+        created_on = datetime.datetime.now()
 
         # Check password strength using zxcvbn
         password_strength = zxcvbn(password)
@@ -237,9 +249,9 @@ def register():
             # Email, username, and phone number are not registered, proceed with registration
             hashed_password = generate_password_hash(password)
             cursor.execute(
-                'INSERT INTO accounts(username, password, email, firstname, lastname, phonenumber, phone_verified) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?)',
-                (username, hashed_password, email, firstname, lastname, phonenumber, False))
+                'INSERT INTO accounts(username, password, email, firstname, lastname, phonenumber, phone_verified, created_on) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                (username, hashed_password, email, firstname, lastname, phonenumber, False, created_on))
             connection.commit()
 
             session['registered'] = True
@@ -250,7 +262,6 @@ def register():
             return redirect(url_for('phone_verification'))
 
     return render_template('register.html', msg=msg)
-
 
 @app.route('/pythonlogin/logout')
 def logout():
@@ -310,7 +321,6 @@ def home():
 
     return redirect(url_for('login'))
 
-
 # Function to store location history in the database
 def store_location_history(user_id, latitude, longitude):
     try:
@@ -324,7 +334,6 @@ def store_location_history(user_id, latitude, longitude):
         print(str(e))
     finally:
         connection.close()
-
 
 @app.route('/store_location', methods=['POST'])
 def store_location():
@@ -344,7 +353,6 @@ def store_location():
     else:
         return jsonify({"success": False, "error": "User not logged in"})
 
-
 @app.route('/pythonlogin/profile')
 def profile():
     if 'loggedin' in session:
@@ -363,17 +371,10 @@ def profile():
         account = cursor.fetchone()
 
         # Debugging: Print account data
-        # print("Account Data:", account)
+        print("Account Data:", account)
 
         return render_template('profile.html', account=account)
     return redirect(url_for('login'))
-
-
-###
-
-
-
-###
 
 
 @app.route("/phone_verification", methods=["GET", "POST"])
@@ -384,6 +385,7 @@ def phone_verification():
 
         # Store the email also in the session for later validation
         session['user_email'] = email
+
 
         # Generate a new 6-digit OTP
         otp = ''.join([str(randint(0, 9)) for _ in range(6)])
@@ -438,7 +440,6 @@ def verify():
 
     return render_template("verify.html")
 
-
 ##########
 
 @app.route('/password_reset', methods=['GET', 'POST'])
@@ -472,8 +473,7 @@ def password_reset():
                 email_message += "<br><br>Please use this OTP to validate your account on TestSite.com."
 
                 # Create a message containing the customized email message and send it to the specified email
-                msg = Message(subject='OTP Verification for TestSite.com', sender='TestSite.com',
-                              recipients=[user_email])
+                msg = Message(subject='OTP Verification for TestSite.com', sender='TestSite.com', recipients=[user_email])
                 msg.html = email_message
                 mail.send(msg)
 
@@ -502,7 +502,6 @@ def password_reset_verification():
             return render_template("password_reset_verification.html", error_message=error_message)
 
     return render_template("password_reset_verification.html")
-
 
 @app.route('/display_reset_password')
 def display_reset_password():
@@ -561,15 +560,12 @@ def is_password_change_required(user_id):
 
     return False
 
-
 # Function to check if a password is in the password history
 def is_password_in_history(user_id, new_password):
     connection = sqlite3.connect("verfications_database.db")
     cursor = connection.cursor()
 
-    cursor.execute(
-        "SELECT password_hash FROM password_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 5",
-        (user_id,))
+    cursor.execute("SELECT password_hash FROM password_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 5", (user_id,))
     previous_password_hashes = cursor.fetchall()
 
     connection.close()
@@ -579,7 +575,6 @@ def is_password_in_history(user_id, new_password):
             return True
 
     return False
-
 
 @app.route('/change_password', methods=['GET', 'POST'])
 def change_password():
@@ -602,8 +597,7 @@ def change_password():
                         cursor.execute("UPDATE accounts SET password = ? WHERE id = ?", (hashed_password, user_id))
 
                         # Insert the new password into the 'password_history' table
-                        cursor.execute("INSERT INTO password_history (user_id, password) VALUES (?, ?)",
-                                       (user_id, new_password))
+                        cursor.execute("INSERT INTO password_history (user_id, password) VALUES (?, ?)", (user_id, new_password))
 
                         connection.commit()
                         connection.close()
@@ -625,7 +619,6 @@ def change_password():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
     # app.run(debug=True, host='0.0.0.0')
 
     # # Check if a custom port was provided as a command-line argument

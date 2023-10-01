@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Phone Verification</title>
+    <title>Email OTP Verification</title>
     <style>
         .live-time {
             font-size: 20px;
@@ -29,19 +29,7 @@
         <p style="color: red;">{{ error_message }}</p>
     {% endif %}
 
-    <script>
-        function updateLiveTime() {
-            const liveTimeElement = document.getElementById('live-time');
-            const now = new Date();
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-            const seconds = now.getSeconds().toString().padStart(2, '0');
-            const formattedTime = `Current Time: ${hours}:${minutes}:${seconds}`;
-            liveTimeElement.textContent = formattedTime;
-            setTimeout(updateLiveTime, 1000); // Update every second
-        }
+    <script src="{{ url_for('static', filename='livetime.js') }}"></script>
 
-        document.addEventListener('DOMContentLoaded', updateLiveTime);
-    </script>
 </body>
 </html>
