@@ -23,6 +23,21 @@ authy_api_key = config['authy']['API_KEY']
 api = AuthyApiClient(authy_api_key)
 
 
+app.config["MAIL_SERVER"] = 'smtp.gmail.com'
+app.config["MAIL_PORT"] = 465
+app.config["MAIL_USERNAME"] = config['email']['USERNAME']
+app.config['MAIL_PASSWORD'] = config['email']['PASSWORD']
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+
+# Initialize Flask-Mail
+mail = Mail(app)
+
+# Initialize the JWTManager
+app.config['JWT_SECRET_KEY'] = 'super-secret'
+jwt = JWTManager(app)
+
+
 # SQLite Configuration
 # Function to create the database and table
 def create_database():
@@ -126,24 +141,36 @@ create_login_history_table()
 # Configure email settings for sending OTP# Call this function to create the new table
 create_location_history_table()
 
-app.config["MAIL_SERVER"] = 'smtp.gmail.com'
-app.config["MAIL_PORT"] = 465
-app.config["MAIL_USERNAME"] = config['email']['USERNAME']
-app.config['MAIL_PASSWORD'] = config['email']['PASSWORD']
-app.config['MAIL_USE_TLS'] = False
-app.config['MAIL_USE_SSL'] = True
 
-# Initialize Flask-Mail
-mail = Mail(app)
+# Create a new table to track password change history
+def create_password_change_history_table():
+    conn = sqlite3.connect('verfications_database.db')
+    c = conn.cursor()
 
-# Initialize the JWTManager
-app.config['JWT_SECRET_KEY'] = 'super-secret'
-jwt = JWTManager(app)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS password_change_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            change_timestamp DATETIME,
+            FOREIGN KEY (user_id) REFERENCES accounts (id)
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+# Call this function to create the new table
+create_password_change_history_table()
+
+
+
 
 @app.route('/login', methods=['GET', 'POST'])
 @app.route('/', methods=['GET', 'POST'])
 def login():
+    # Check if the HTTP request method is POST and if 'username' and 'password' are in the form data
     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
+        # Retrieve the username and password from the form data
         username = request.form['username']
         password = request.form['password']
 
@@ -158,11 +185,16 @@ def login():
         # Fetch the first row (if any) as a tuple.
         details = cursor.fetchone()
 
+        # Check if user details were found in the database
         if details is not None:
-            if details[7]:  # Check if the email is registered and verified
+            # Check if the user's email is registered and verified
+            if details[7]:  # Assuming email_verified is at index 7 in the tuple
+                # Retrieve the hashed password from the database
                 hashed_password = details[2]  # Assuming password is at index 2 in the tuple
+                # Verify if the entered password matches the hashed password
                 password_match = check_password_hash(hashed_password, password)
 
+                # If the password is correct, allow the user to log in
                 if password_match:
                     session['loggedin'] = True
                     session['id'] = details[0]  # Assuming ID is at index 0 in the tuple
@@ -170,8 +202,10 @@ def login():
 
                     # Check if it's time for the user to change their password
                     if is_password_change_required(session['id']):
+                        # Redirect the user to the password change page
                         return redirect(url_for('change_password'))
                     else:
+                        # Redirect the user to the home page
                         return redirect(url_for('home'))
                 else:
                     flash('Incorrect username/password!')
@@ -180,7 +214,9 @@ def login():
         else:
             flash('Incorrect username/password!')
 
+    # If the request method is GET or login failed, render the login page
     return render_template('index.html', title="Login")
+
 
 
 # Function to log login history
@@ -534,17 +570,12 @@ def reset_password():
 
 # Function to check if a password change is required for a user
 def is_password_change_required(user_id):
-    # Add your logic here to determine if the user needs to change their password
-    # For example, you can check the timestamp of the last password change and
-    # compare it to a certain time interval to decide if a change is required.
-
-    # For demonstration purposes, let's assume password change is required every 90 days.
-    # You should adjust this logic based on your requirements and database schema.
-
     connection = sqlite3.connect("verfications_database.db")
     cursor = connection.cursor()
+
+    # Get the timestamp of the last password change
     cursor.execute(
-        "SELECT change_timestamp FROM password_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 1",
+        "SELECT change_timestamp FROM password_change_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 1",
         (user_id,))
     last_password_change = cursor.fetchone()
 
@@ -552,13 +583,23 @@ def is_password_change_required(user_id):
         last_change_date = datetime.datetime.strptime(last_password_change[0], "%Y-%m-%d %H:%M:%S")
         current_date = datetime.datetime.now()
         delta = current_date - last_change_date
+
         connection.close()
 
         # Check if it's been more than 90 days since the last password change
-        if delta.days > 90:
+        # This condition enforces a password change requirement every 90 days for users.
+
+        # if delta.days > 90:
+        #     return True
+
+        # Check if it's been more than 10 minutes since the last password change (600 seconds)
+        # This condition enforces a password change requirement every 10 minutes for testing purposes.
+
+        if delta.total_seconds() > 600:
             return True
 
     return False
+
 
 # Function to check if a password is in the password history
 def is_password_in_history(user_id, new_password):
@@ -587,24 +628,29 @@ def change_password():
                 if new_password == confirm_password:
                     user_id = session['id']
 
-                    # Check if the new password is not in the password history
-                    if not is_password_in_history(user_id, new_password):
+                    # Check if a password change is required
+                    if is_password_change_required(user_id):
                         hashed_password = generate_password_hash(new_password)
 
                         # Update the password in the 'accounts' table
                         connection = sqlite3.connect("verfications_database.db")
                         cursor = connection.cursor()
-                        cursor.execute("UPDATE accounts SET password = ? WHERE id = ?", (hashed_password, user_id))
+                        cursor.execute("UPDATE accounts SET password_hash = ? WHERE id = ?", (hashed_password, user_id))
 
                         # Insert the new password into the 'password_history' table
-                        cursor.execute("INSERT INTO password_history (user_id, password) VALUES (?, ?)", (user_id, new_password))
+                        cursor.execute("INSERT INTO password_history (user_id, password_hash, change_timestamp) VALUES (?, ?, ?)",
+                                       (user_id, hashed_password, datetime.datetime.now()))
+
+                        # Insert a new record into 'password_change_history' table
+                        cursor.execute("INSERT INTO password_change_history (user_id, change_timestamp) VALUES (?, ?)",
+                                       (user_id, datetime.datetime.now()))
 
                         connection.commit()
                         connection.close()
 
                         return redirect(url_for('home'))
                     else:
-                        flash("You cannot reuse a previous password!")
+                        flash("You can change your password after 90 days from your last change.")
                 else:
                     flash("Passwords do not match!")
             else:
