@@ -3,6 +3,8 @@ import datetime
 import re
 import sqlite3
 from random import randint
+
+import requests
 from zxcvbn import zxcvbn
 
 from authy.api import AuthyApiClient
@@ -21,6 +23,11 @@ app.secret_key = 'your_secret_key'
 # Authy Configuration
 authy_api_key = config['authy']['API_KEY']
 api = AuthyApiClient(authy_api_key)
+
+# Phone Verification
+# API_KEY = ''
+currency_converter_api_key = config['currency_converter']['API_KEY']
+
 
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 465
@@ -65,8 +72,10 @@ def create_accounts():
     conn.commit()
     conn.close()
 
+
 # Create table called accounts:
 create_accounts()
+
 
 # Create a new table to track password changes
 def create_password_history_table():
@@ -189,6 +198,7 @@ def create_login_attempts_table():
     # Close the database connection
     conn.close()
 
+
 # Call this function to create the new 'login_attempts' table
 create_login_attempts_table()
 
@@ -245,6 +255,16 @@ def login():
         # Retrieve the username and password from the form data
         username = request.form['username']
         password = request.form['password']
+
+        # connection = sqlite3.connect("verfications_database.db")
+        # cursor = connection.cursor()
+        #
+        # cursor.execute("SELECT * FROM accounts WHERE username = %s", (username,))
+        # details = cursor.fetchone()
+        #
+        # if details is None:
+        #     msg = 'Incorrect username/password!'
+        #     return render_template('index.html', title="Login", msg=msg)
 
         # Check if user is blocked, and calculate remaining time if blocked
         if check_user_blocked(username):
@@ -424,7 +444,7 @@ def register():
             if phonenumber:
                 session['phone_number'] = phonenumber  # Store phone number if provided
 
-            return redirect(url_for('phone_verification'))
+            return redirect(url_for('email_verification'))
 
     return render_template('register.html', msg=msg)
 
@@ -545,13 +565,91 @@ def profile():
         return render_template('profile.html', account=account)
     return redirect(url_for('login'))
 
+
 @app.route('/about_us')
 def about_us():
     return render_template('about_us.html')
 
 
+###
 
-@app.route("/phone_verification", methods=["GET", "POST"])
+# @app.route('/phone_verification_page')
+# def phone_verification_page():
+#     return render_template('phone_verification_page.html')
+
+
+# @app.route("/phone_verification_page", methods=["GET", "POST"])
+# def phone_verification_page():
+#     if request.method == "POST":
+#         country_code = request.form.get("country_code")
+#         phone_number = request.form.get("phone_number")
+#         method = request.form.get("method")
+#
+#         session['country_code'] = country_code
+#         session['phone_number'] = phone_number
+#
+#         api.phones.verification_start(phone_number, country_code, via=method)
+#
+#         return redirect(url_for("verify_phone_otp"))
+#
+#     return render_template("phone_verification_page.html")
+#
+#
+# @app.route("/verify_phone_otp", methods=["GET", "POST"])
+# def verify_phone_otp():
+#     if request.method == "POST":
+#         token = request.form.get("token")
+#
+#         phone_number = session.get("phone_number")
+#         country_code = session.get("country_code")
+#
+#         verification = api.phones.verification_check(phone_number, country_code, token)
+#
+#         if verification.ok():
+#
+#             # Phone verified successfully, redirect to currency_converter route
+#             return redirect(url_for('currency_converter'))
+#         else:
+#             # Verification failed, render verify_phone_otp.html with error message
+#             error_message = "Invalid verification code. Please try again."
+#             return render_template("verify.html", error_message=error_message)
+#
+#     return render_template("verify_phone_otp.html")
+#
+#
+# @app.route('/currency_converter', methods=['GET', 'POST'])
+# def currency_converter():
+#     if request.method == 'POST':
+#         try:
+#             amount = request.form['amount']
+#             amount = float(amount)
+#             from_c = request.form['from_c']
+#             to_c = request.form['to_c']
+#             url = 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={}&to_currency={}&apikey={}'.format(
+#                 from_c, to_c, currency_converter_api_key)
+#             response = requests.get(url=url).json()
+#             rate = response['Realtime Currency Exchange Rate']['5. Exchange Rate']
+#             rate = float(rate)
+#             result = rate * amount
+#             from_c_code = response['Realtime Currency Exchange Rate']['1. From_Currency Code']
+#             from_c_name = response['Realtime Currency Exchange Rate']['2. From_Currency Name']
+#             to_c_code = response['Realtime Currency Exchange Rate']['3. To_Currency Code']
+#             to_c_name = response['Realtime Currency Exchange Rate']['4. To_Currency Name']
+#             time = response['Realtime Currency Exchange Rate']['6. Last Refreshed']
+#             return render_template('home.html', result=round(result, 2), amount=amount,
+#                                    from_c_code=from_c_code, from_c_name=from_c_name,
+#                                    to_c_code=to_c_code, to_c_name=to_c_name, time=time)
+#         except Exception as e:
+#             return '<h1>Bad Request : {}</h1>'.format(e)
+#
+#     else:
+#         return render_template('currency_converter.html')
+
+
+####################################################################################
+#### below routes url should be renamed those are already for email working ########
+
+@app.route("/email_verification", methods=["GET", "POST"])
 def phone_verification():
     if request.method == "POST":
         # Get the email address from the submitted form
@@ -582,7 +680,7 @@ def phone_verification():
     return render_template("phone_verification.html")
 
 
-@app.route("/verify", methods=["GET", "POST"])
+@app.route("/verify_email_otp", methods=["GET", "POST"])
 def verify():
     if request.method == "POST":
         user_otp = request.form['otp']
@@ -729,14 +827,14 @@ def is_password_change_required(user_id):
         # Check if it's been more than 90 days since the last password change
         # This condition enforces a password change requirement every 90 days for users.
 
-        # if delta.days > 90:
-        #     return True
+        if delta.days > 90:
+            return True
 
         # Check if it's been more than 10 minutes since the last password change (600 seconds)
         # This condition enforces a password change requirement every 10 minutes for testing purposes.
 
-        if delta.total_seconds() > 600:
-            return True
+        # if delta.total_seconds() > 600:
+        #     return True
 
     return False
 
