@@ -205,7 +205,8 @@ def get_remaining_block_time(username):
     )
     block_timestamp = cursor.fetchone()
 
-    if not block_timestamp:
+    if block_timestamp is None:
+        connection.close()
         return "User has not been blocked before"
 
     # Convert the block_timestamp string to a datetime object
@@ -218,6 +219,7 @@ def get_remaining_block_time(username):
     # Check if the remaining time is negative, meaning the block has expired
     if time_difference.total_seconds() < 0:
         reset_login_attempts(username)  # Reset login attempts after 5 minutes
+        connection.close()
         return "Block has expired"
 
     # Return the remaining time in a human-readable format
@@ -226,6 +228,7 @@ def get_remaining_block_time(username):
     connection.close()
 
     return remaining_time
+
 
 
 # Update the 'blocked' route to use the get_remaining_block_time function

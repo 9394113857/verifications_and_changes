@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Add your JavaScript and CSS for the popup here -->
+    <style>
+        /* Style for the red text */
+        .red-text {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div id="blocked-popup" class="popup" style="display: none;">
+        <p>You are blocked and cannot log in for <span class="red-text">{{ remaining_time }}</span>. Please try again later.</p>
+    </div>
+    <!-- Add your HTML content here -->
+</body>
+</html>
+
+<script>
+    // JavaScript to show the popup when the page is loaded
+    window.addEventListener('DOMContentLoaded', (event) => {
+        // Get the remaining time from the server-side variable
+        const remainingTime = '{{ remaining_time }}';
+
+        // Check if the remaining time is not 'Block has expired'
+        if (remainingTime !== 'Block has expired') {
+            // Display the popup with the remaining time
+            const popup = document.getElementById('blocked-popup');
+            popup.style.display = 'block';
+
+            // You can use client-side logic to close the popup after a certain time if needed
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 5000); // Close the popup after 5 seconds (adjust as needed)
+        }
+    });
+</script>
