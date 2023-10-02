@@ -230,7 +230,6 @@ def get_remaining_block_time(username):
     return remaining_time
 
 
-
 # Update the 'blocked' route to use the get_remaining_block_time function
 @app.route('/blocked/<username>')
 def blocked(username):
@@ -545,6 +544,11 @@ def profile():
 
         return render_template('profile.html', account=account)
     return redirect(url_for('login'))
+
+@app.route('/about_us')
+def about_us():
+    return render_template('about_us.html')
+
 
 
 @app.route("/phone_verification", methods=["GET", "POST"])

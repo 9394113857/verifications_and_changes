@@ -1,0 +1,62 @@
+{% extends 'layout.html' %}
+
+{% block title %}About Us{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>About Our Company</h2>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vitae ipsum a justo tincidunt viverra eu a neque. Nam tristique quam eget libero tincidunt, et euismod tortor suscipit.</p>
+
+    <h3>Our Team</h3>
+    <ul>
+        <li>John Doe - CEO</li>
+        <li>Jane Smith - CTO</li>
+        <li>David Johnson - COO</li>
+    </ul>
+
+    <!-- Add CSS Changes Here -->
+    <style>
+        /* Your CSS styles specific to the About Us page */
+        .container {
+            background-color: #f9f9f9;
+            padding: 20px;
+        }
+        /* Add more styles as needed */
+    </style>
+
+    <h3>Company History</h3>
+    <p>Our company was founded in 20XX with a vision to...</p>
+
+    <!-- JavaScript Timer Script -->
+    <script>
+        // JavaScript code for a simple timer
+        function startTimer(duration, display) {
+            var timer = duration, minutes, seconds;
+            setInterval(function () {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                display.textContent = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    timer = duration;
+                    // Optionally, you can perform an action when the timer reaches zero
+                    // Example: display.textContent = "Time's up!";
+                }
+            }, 1000);
+        }
+
+        window.onload = function () {
+            var fiveMinutes = 5 * 60; // 5 minutes in seconds
+            var timerDisplay = document.getElementById("timer-display");
+            startTimer(fiveMinutes, timerDisplay);
+        };
+    </script>
+
+    <!-- Timer Display -->
+    <p>Session Timeout: <span id="timer-display">05:00</span></p>
+</div>
+{% endblock %}
