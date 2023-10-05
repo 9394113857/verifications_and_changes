@@ -256,26 +256,31 @@ def login():
         # Establish a connection to your SQLite database file.
         connection = sqlite3.connect("verfications_database.db")
         cursor = connection.cursor()
-        cursor.execute('SELECT * FROM accounts WHERE username = ?', (username,))
-        details = cursor.fetchone()
+
+        # Query the database to get the user details based on the provided username
+        cursor.execute(
+            "SELECT id, username, password, email_verified FROM accounts WHERE username = ?",
+            (username,)
+        )
+        user_details = cursor.fetchone()
 
         # Check if user details were found in the database
-        if details is not None:
+        if user_details is not None:
+            user_id, username, hashed_password, email_verified = user_details
+
             # Check if the user's email is registered and verified
-            if details[4]:  # Assuming email_verified is at index 4 in the tuple
-                # Retrieve the hashed password from the database
-                hashed_password = details[2]  # Assuming password is at index 2 in the tuple
+            if email_verified:
                 # Verify if the entered password matches the hashed password
                 password_match = check_password_hash(hashed_password, password)
 
                 # If the password is correct, allow the user to log in
                 if password_match:
                     session['loggedin'] = True
-                    session['id'] = details[0]  # Assuming ID is at index 0 in the tuple
-                    session['username'] = details[1]  # Assuming username is at index 1 in the tuple
+                    session['id'] = user_id
+                    session['username'] = username
 
                     # Check if it's time for the user to change their password
-                    if is_password_change_required(session['id']):
+                    if is_password_change_required(user_id):
                         # Redirect the user to the password change page
                         return redirect(url_for('change_password'))
                     else:
@@ -289,12 +294,19 @@ def login():
                     increment_login_attempts(username)
                     flash('Incorrect username/password!')
             else:
-                flash('Email is not registered or not verified. Please use a registered and verified email.')
+                # Redirect the user to the email verification page
+                return redirect(url_for('email_verification'))
         else:
-            flash('Incorrect username/password!')
+            # Warn the user that the email is not registered and try again
+            flash('Please check if your email is registered and try again with the correct email.', 'warning')
+
+        # Close the database connection
+        connection.close()
 
     # If the request method is GET or login failed, render the login page
     return render_template('index.html', title="Login")
+
+
 
 
 # Function to log login history
@@ -425,7 +437,7 @@ def register():
             if phonenumber:
                 session['phone_number'] = phonenumber  # Store phone number if provided
 
-            return redirect(url_for('phone_verification'))
+            return redirect(url_for('email_verification'))
 
     return render_template('register.html', msg=msg)
 
@@ -547,8 +559,8 @@ def profile():
     return redirect(url_for('login'))
 
 
-@app.route("/phone_verification", methods=["GET", "POST"])
-def phone_verification():
+@app.route("/email_verification", methods=["GET", "POST"])
+def email_verification():
     if request.method == "POST":
         # Get the email address from the submitted form
         email = request.form['email']
@@ -573,13 +585,13 @@ def phone_verification():
         mail.send(msg)
 
         # Redirect to the verification page
-        return redirect(url_for("verify"))
+        return redirect(url_for("verify_email_otp"))
 
-    return render_template("phone_verification.html")
+    return render_template("email_verification.html")
 
 
-@app.route("/verify", methods=["GET", "POST"])
-def verify():
+@app.route("/verify_email_otp", methods=["GET", "POST"])
+def verify_email_otp():
     if request.method == "POST":
         user_otp = request.form['otp']
 
@@ -603,11 +615,11 @@ def verify():
             # Phone verified successfully, redirect to login page
             return redirect(url_for('login'))
         else:
-            # Verification failed, render verify.html with error message
+            # Verification failed, render verify_email_otp.html with error message
             error_message = "Invalid verification code. Please try again."
-            return render_template("verify.html", error_message=error_message)
+            return render_template("verify_email_otp.html", error_message=error_message)
 
-    return render_template("verify.html")
+    return render_template("verify_email_otp.html")
 
 
 ##########

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Email Verification</title> <!-- change to Email Verification-->
+
+    <link rel="stylesheet" media="all" href="https://cdnjs.cloudflare.com/ajax/libs/authy-form-helpers/2.3/form.authy.min.css" data-turbolinks-track="reload" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/authy-form-helpers/2.3/form.authy.min.js" data-turbolinks-track="reload"></script>
+
+    <style>
+        .live-time {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Live Time Display -->
+    <div class="live-time" id="live-time"></div>
+
+    <h1>Verify your email address</h1>
+    <form action="/email_verification" accept-charset="UTF-8" method="post">
+        Email:<input type="email" name="email">
+        <button name="button" type="submit">Verify</button>
+    </form>
+
+    <script src="{{ url_for('static', filename='livetime.js') }}"></script>
+
+</body>
+
+</html>
