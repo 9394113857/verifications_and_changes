@@ -1,0 +1,79 @@
+2023-10-19 20:59:02,049 INFO [app:506] Registration attempt: Username=raghunadh177, Email=raghunadh177@gmail.com, Phone=
+2023-10-19 20:59:02,050 INFO [app:510] Registration failed: Username already exists - raghunadh177
+2023-10-19 20:59:15,115 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 20:59:16,426 INFO [app:367] Successful login for username: raghunadh177
+2023-10-19 20:59:48,460 INFO [app:575] User raghunadh177 logged out.
+2023-10-19 20:59:58,862 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:00:00,023 WARNING [app:384] Incorrect password for username: raghunadh177
+2023-10-19 21:00:03,257 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:00:04,965 WARNING [app:384] Incorrect password for username: raghunadh177
+2023-10-19 21:00:07,737 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:00:08,980 WARNING [app:384] Incorrect password for username: raghunadh177
+2023-10-19 21:00:12,487 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:00:13,580 WARNING [app:384] Incorrect password for username: raghunadh177
+2023-10-19 21:00:16,119 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:00:17,144 WARNING [app:384] Incorrect password for username: raghunadh177
+2023-10-19 21:00:19,728 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:00:19,897 WARNING [app:327] User is blocked, remaining time: 297.231392
+2023-10-19 21:00:19,927 INFO [app:292] Next login attempt time for username raghunadh177: 2023-10-d 21:05:17
+2023-10-19 21:00:30,983 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:00:30,993 WARNING [app:327] User is blocked, remaining time: 286.136003
+2023-10-19 21:00:30,996 INFO [app:292] Next login attempt time for username raghunadh177: 2023-10-d 21:05:17
+2023-10-19 21:00:43,323 INFO [app:292] Next login attempt time for username raghunadh177: 2023-10-d 21:05:17
+2023-10-19 21:01:38,734 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:01:38,734 WARNING [app:327] User is blocked, remaining time: 218.39466
+2023-10-19 21:01:38,759 INFO [app:292] Next login attempt time for username raghunadh177: 2023-10-d 21:05:17
+2023-10-19 21:02:47,580 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:02:47,598 WARNING [app:327] User is blocked, remaining time: 149.530788
+2023-10-19 21:02:47,609 INFO [app:292] Next login attempt time for username raghunadh177: 2023-10-d 21:05:17
+2023-10-19 21:03:47,226 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:03:47,242 WARNING [app:327] User is blocked, remaining time: 89.887025
+2023-10-19 21:03:47,258 INFO [app:292] Next login attempt time for username raghunadh177: 2023-10-d 21:05:17
+2023-10-19 21:05:30,702 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:05:30,732 WARNING [app:327] User is blocked, remaining time: Block has expired
+2023-10-19 21:05:59,239 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:06:00,422 INFO [app:367] Successful login for username: raghunadh177
+2023-10-19 21:06:07,662 INFO [app:575] User raghunadh177 logged out.
+2023-10-19 21:08:40,850 INFO [app:805] Password reset form displayed for GET request.
+2023-10-19 21:08:47,793 INFO [app:763] Password reset requested for username: raghunadh177, Email: raghunadh177@gmail.com
+2023-10-19 21:08:47,801 INFO [app:785] OTP generated for password reset for username: raghunadh177
+2023-10-19 21:09:20,686 INFO [app:847] Password changed for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:10:31,802 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:10:32,820 WARNING [app:384] Incorrect password for username: raghunadh177
+2023-10-19 21:10:38,778 INFO [app:321] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:10:39,607 INFO [app:367] Successful login for username: raghunadh177
+2023-10-19 21:10:47,833 INFO [app:575] User raghunadh177 logged out.
+2023-10-19 21:16:25,594 INFO [app:318] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:16:26,443 WARNING [app:381] Incorrect password for username: raghunadh177
+2023-10-19 21:16:31,338 INFO [app:318] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:16:32,299 WARNING [app:381] Incorrect password for username: raghunadh177
+2023-10-19 21:16:35,759 INFO [app:318] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:16:36,748 WARNING [app:381] Incorrect password for username: raghunadh177
+2023-10-19 21:16:40,129 INFO [app:318] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:16:40,941 WARNING [app:381] Incorrect password for username: raghunadh177
+2023-10-19 21:16:44,567 INFO [app:318] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:16:45,439 WARNING [app:381] Incorrect password for username: raghunadh177
+2023-10-19 21:16:48,056 INFO [app:318] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:16:48,106 WARNING [app:324] User is blocked, remaining time: 297.28899
+2023-10-19 21:16:48,122 INFO [app:292] Next login attempt time for username raghunadh177: 2023-10-19 21:21:45
+2023-10-19 21:19:04,937 INFO [app:320] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:19:04,937 WARNING [app:326] User is blocked, remaining time: 160.458781
+2023-10-19 21:19:04,954 INFO [app:294] Next login attempt time for username raghunadh177: 2023-10-19 21:21:45
+2023-10-19 21:19:18,683 INFO [app:294] Next login attempt time for username raghunadh177: 2023-10-19 21:21:45
+2023-10-19 21:25:21,273 INFO [app:323] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:25:21,339 WARNING [app:329] User is blocked, remaining time: Block has expired
+2023-10-19 21:25:33,674 INFO [app:323] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:25:34,501 INFO [app:369] Successful login for username: raghunadh177
+2023-10-19 21:25:57,972 INFO [app:577] User raghunadh177 logged out.
+2023-10-19 21:34:04,617 INFO [app:323] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:36:53,707 INFO [app:806] Password reset form displayed for GET request.
+2023-10-19 21:36:59,625 INFO [app:764] Password reset requested for username: raghunadh177, Email: raghunadh177@gmail.com
+2023-10-19 21:36:59,625 INFO [app:786] OTP generated for password reset for username: raghunadh177
+2023-10-19 21:39:00,632 INFO [app:806] Password reset form displayed for GET request.
+2023-10-19 21:39:06,540 INFO [app:806] Password reset form displayed for GET request.
+2023-10-19 21:39:11,088 INFO [app:764] Password reset requested for username: raghunadh177, Email: raghunadh177@gmail.com
+2023-10-19 21:39:11,096 INFO [app:786] OTP generated for password reset for username: raghunadh177
+2023-10-19 21:39:36,714 INFO [app:848] Password changed for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:39:49,611 INFO [app:323] Login attempt for username: raghunadh177, IP Address: 127.0.0.1
+2023-10-19 21:39:50,427 INFO [app:369] Successful login for username: raghunadh177
+2023-10-19 21:40:00,544 INFO [app:576] User raghunadh177 logged out.

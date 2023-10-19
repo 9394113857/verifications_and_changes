@@ -1,5 +1,11 @@
+import logging
+import os
 import configparser  # Added to read the configuration file
+from datetime import date
 import datetime
+from logging.handlers import RotatingFileHandler
+from email.mime.text import MIMEText
+
 import re
 import sqlite3
 from random import randint
@@ -28,6 +34,7 @@ app.config["MAIL_USERNAME"] = config['email']['USERNAME']
 app.config['MAIL_PASSWORD'] = config['email']['PASSWORD']
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_DEFAULT_SENDER'] = 'your_email@example.com'  # Your default sender email address
 
 # Initialize Flask-Mail
 mail = Mail(app)
@@ -35,6 +42,27 @@ mail = Mail(app)
 # Initialize the JWTManager
 app.config['JWT_SECRET_KEY'] = 'super-secret'
 jwt = JWTManager(app)
+
+
+# Set up logger configuration
+logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+os.makedirs(logs_dir, exist_ok=True)
+
+log_file = os.path.join(logs_dir, f'{date.today()}.log')
+
+log_handler = RotatingFileHandler(log_file, maxBytes=1024 * 1024, backupCount=5)
+log_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s [%(module)s:%(lineno)d] %(message)s'))
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+
+# Delete older log files
+for filename in os.listdir(logs_dir):
+    if filename.endswith('.log'):
+        filepath = os.path.join(logs_dir, filename)
+        if filepath != log_file:
+            os.remove(filepath)
 
 
 # SQLite Configuration
@@ -212,6 +240,7 @@ def get_remaining_block_time(username):
     # Convert the block_timestamp string to a datetime object
     block_time = datetime.datetime.strptime(block_timestamp[0], "%Y-%m-%d %H:%M:%S.%f")
 
+
     # Calculate the remaining time until the block expires (e.g., 5 minutes)
     current_time = datetime.datetime.now()
     time_difference = block_time + datetime.timedelta(minutes=5) - current_time
@@ -222,8 +251,8 @@ def get_remaining_block_time(username):
         connection.close()
         return "Block has expired"
 
-    # Return the remaining time in a human-readable format
-    remaining_time = str(time_difference)
+    # Return the remaining time in seconds
+    remaining_time = time_difference.total_seconds()
 
     connection.close()
 
@@ -231,10 +260,53 @@ def get_remaining_block_time(username):
 
 
 
+
+def send_alert_email(subject, body, recipient):
+    msg = Message(subject=subject, sender='YourApp', recipients=[recipient])
+    msg.body = body
+    mail.send(msg)  # Assuming 'mail' is your Flask-Mail instance
+
+
 # Update the 'blocked' route to use the get_remaining_block_time function
 @app.route('/blocked/<username>')
 def blocked(username):
     remaining_time = get_remaining_block_time(username)
+
+    if remaining_time == "User has not been blocked before":
+        logger.info(f'User has not been blocked before: {username}')
+        return "User has not been blocked before"
+    elif remaining_time == "Block has expired":
+        logger.info(f'Block has expired for: {username}')
+        return "Block has expired"
+
+    # Calculate the next login attempt time based on the remaining time
+    next_login_attempt_time = datetime.datetime.now() + datetime.timedelta(seconds=remaining_time)
+
+    # Format the next login attempt time as a user-friendly string
+    next_login_attempt_time_str = next_login_attempt_time.strftime('%Y-%m-d %H:%M:%S')
+
+    # Format the next login attempt time to be bold and red in the email message
+    next_login_attempt_time_str_formatted = f'<span style="color: red; font-weight: bold;">{next_login_attempt_time_str}</span>'
+
+    # Add a line before the scheduled time line
+    line_before_scheduled_time = "Please note the following scheduled time:"
+
+    # Log the next login attempt time
+    logger.info(f'Next login attempt time for username {username}: {next_login_attempt_time_str}')
+
+    # Send an email alert with the next login attempt time
+    email_subject = "Next Login Attempt Time"
+
+    # Include the line before the scheduled time in the email message
+    email_message = f"{line_before_scheduled_time}<br>{next_login_attempt_time_str_formatted}."
+
+    # Create a message containing the customized email message and set the content type to HTML
+    msg = Message(subject=email_subject, recipients=[session['user_email']])
+    msg.html = email_message
+
+    # Send the email
+    mail.send(msg)
+
     return render_template('blocked.html', remaining_time=remaining_time)
 
 
@@ -247,10 +319,14 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
+        # Log a message indicating a login attempt
+        logger.info(f'Login attempt for username: {username}, IP Address: {request.remote_addr}')
+
         # Check if user is blocked, and calculate remaining time if blocked
         if check_user_blocked(username):
             remaining_time = get_remaining_block_time(username)
             flash(f'You are blocked. Please try again in {remaining_time}.', 'danger')
+            logger.warning(f'User is blocked, remaining time: {remaining_time}')
             return redirect(url_for('blocked', username=username))
 
         # Establish a connection to your SQLite database file.
@@ -259,14 +335,14 @@ def login():
 
         # Query the database to get the user details based on the provided username
         cursor.execute(
-            "SELECT id, username, password, email_verified FROM accounts WHERE username = ?",
+            "SELECT id, username, password, email_verified, email FROM accounts WHERE username = ?",
             (username,)
         )
         user_details = cursor.fetchone()
 
         # Check if user details were found in the database
         if user_details is not None:
-            user_id, username, hashed_password, email_verified = user_details
+            user_id, username, hashed_password, email_verified, email = user_details
 
             # Check if the user's email is registered and verified
             if email_verified:
@@ -278,34 +354,51 @@ def login():
                     session['loggedin'] = True
                     session['id'] = user_id
                     session['username'] = username
+                    session['user_email'] = email  # Store the user's email in the session
 
                     # Check if it's time for the user to change their password
                     if is_password_change_required(user_id):
                         # Redirect the user to the password change page
+                        logger.info(f'Successful login for username: {username}')
                         return redirect(url_for('change_password'))
                     else:
                         # Reset login attempts for the user since login was successful
                         reset_login_attempts(username)
 
                         # Redirect the user to the home page
+                        logger.info(f'Successful login for username: {username}')
+
+                        # Send a login alert email
+                        login_alert_subject = "Login Alert"
+                        login_alert_body = f"Login detected for username: {username}\nIP Address: {request.remote_addr}"
+
+                        # Try to send the email
+                        try:
+                            send_alert_email(login_alert_subject, login_alert_body, session['user_email'])
+                        except Exception as e:
+                            logger.error(f"Failed to send login alert email: {str(e)}")
+
                         return redirect(url_for('home'))
                 else:
                     # Increment login attempts for the user
                     increment_login_attempts(username)
-                    flash('Incorrect username/password!')
+                    flash('Incorrect username/password!', 'danger')
+                    logger.warning(f'Incorrect password for username: {username}')
             else:
                 # Redirect the user to the email verification page
+                flash('Please check if your email is registered and try again with the correct email.', 'warning')
+                logger.warning(f'Email not verified for username: {username}')
                 return redirect(url_for('email_verification'))
         else:
             # Warn the user that the email is not registered and try again
             flash('Please check if your email is registered and try again with the correct email.', 'warning')
+            logger.warning(f'User not found for username: {username}')
 
         # Close the database connection
         connection.close()
 
     # If the request method is GET or login failed, render the login page
     return render_template('index.html', title="Login")
-
 
 
 
@@ -380,6 +473,7 @@ def increment_login_attempts(username):
 @app.route('/pythonlogin/register', methods=['GET', 'POST'])
 def register():
     msg = ''
+
     if request.method == 'POST':
         # Retrieve form data
         username = request.form['username']
@@ -401,7 +495,7 @@ def register():
 
         # Check for duplicate email if provided
         cursor.execute('SELECT * FROM accounts WHERE email = ?', (email,))
-        existing_email = cursor.fetchone()
+        existing_email = cursor.fetchone() 
 
         # Check for duplicate phone number if provided
         existing_phonenumber = None
@@ -409,20 +503,30 @@ def register():
             cursor.execute('SELECT * FROM accounts WHERE phonenumber = ?', (phonenumber,))
             existing_phonenumber = cursor.fetchone()
 
+        # Log the registration attempt
+        logger.info(f"Registration attempt: Username={username}, Email={email}, Phone={phonenumber}")
+
         if existing_username:
             msg = 'Username already exists. Please choose a different username.'
+            logger.info(f"Registration failed: Username already exists - {username}")
         elif existing_email:
             msg = 'Email is already registered. Please use a different email.'
+            logger.info(f"Registration failed: Email already registered - {email}")
         elif existing_phonenumber:
             msg = 'Phone number already exists. Please choose a different phone number.'
+            logger.info(f"Registration failed: Phone number already exists - {phonenumber}")
         elif password_strength['score'] < 3:
             msg = 'Password is too weak. Please use a stronger password.'
+            logger.info("Registration failed: Weak password")
         elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
             msg = 'Invalid email address!'
+            logger.info(f"Registration failed: Invalid email - {email}")
         elif not re.match(r'[A-Za-z0-9]+', username):
             msg = 'Username must contain only characters and numbers!'
+            logger.info(f"Registration failed: Invalid username - {username}")
         elif not username or not password or not email or not firstname or not lastname:
             msg = 'Please fill out the form.'
+            logger.info("Registration failed: Incomplete form")
         else:
             # Email, username, and phone number are not registered, proceed with registration
             hashed_password = generate_password_hash(password)
@@ -437,9 +541,19 @@ def register():
             if phonenumber:
                 session['phone_number'] = phonenumber  # Store phone number if provided
 
+            # Send a registration alert email
+            registration_alert_subject = "Registration Successful"
+            registration_alert_body = f"Thank you for registering with us!\n\nUsername: {username}\nEmail: {email}\n"
+
+            # Send the registration alert email
+            send_alert_email(registration_alert_subject, registration_alert_body, email)
+            logger.info(f"Registration successful: Username={username}, Email={email}, Phone={phonenumber}")
+
             return redirect(url_for('email_verification'))
 
     return render_template('register.html', msg=msg)
+
+
 
 
 @app.route('/pythonlogin/logout')
@@ -458,10 +572,16 @@ def logout():
         connection.commit()
         connection.close()
 
+        # Log the logout event
+        logger.info(f'User {session.get("username")} logged out.')
+
         session.pop('loggedin', None)
         session.pop('id', None)
         session.pop('username', None)
         return redirect(url_for('login'))
+    
+    # Log a message if no user is logged in and the logout route is accessed
+    logger.warning('Attempted logout with no active user session.')
     return redirect(url_for('login'))
 
 
@@ -489,16 +609,25 @@ def home():
                     # Store the location in the database
                     store_location_history(user_id, latitude, longitude)
 
+                    # Log the location access event
+                    logger.info(f'User {session.get("username")} accessed location with coordinates: Latitude {latitude}, Longitude {longitude}')
+
                     # Redirect to a success page or perform other actions
                     return render_template('location_access_granted.html', username=session['username'])
 
             # Handle the case where the user denied location access
+            # Log a message for location access denial
+            logger.warning(f'User {session.get("username")} denied location access.')
+
             return render_template('location_access_denied.html', username=session['username'])
 
         else:
             return render_template('home.html', username=session['username'])
 
+    # Log a message if an unauthenticated user tries to access the home page
+    logger.warning('Attempted access to the home page with no active user session.')
     return redirect(url_for('login'))
+
 
 
 # Function to store location history in the database
@@ -630,24 +759,31 @@ def password_reset():
         if 'username' in request.form and 'email' in request.form:
             user_name = request.form['username']
             user_email = request.form['email']
+
+            # Log the attempt to reset the password
+            logger.info(f'Password reset requested for username: {user_name}, Email: {user_email}')
+
             # Establish a connection to your SQLite database file.
             connection = sqlite3.connect("verfications_database.db")
-            # Create a cursor using the connection.
             cursor = connection.cursor()
             cursor.execute("SELECT * FROM accounts WHERE username = ? AND email = ?", (user_name, user_email))
             details = cursor.fetchone()
             if details is None:
-                return ({"message": "Invalid username or email address"}), 401
+                # Log the unsuccessful password reset attempt
+                logger.warning(f'Password reset failed for username: {user_name}, Email: {user_email}')
+                return ({"message": "Invalid username or email address"}, 401)
             else:
-                # api.phones.verification_start(phonenumber, country_code='91', via='sms')  # Hardcoded values, via='call'  via='sms'
                 session['username'] = user_name
-                session['user_email'] = user_email
+                session['user_email'] = user_email  # Store the email in the session
 
                 # Generate a new 6-digit OTP
                 otp = ''.join([str(randint(0, 9)) for _ in range(6)])
 
                 # Store the OTP in the session for later validation
                 session['user_otp'] = otp
+
+                # Log the OTP generation event
+                logger.info(f'OTP generated for password reset for username: {user_name}')
 
                 # Customize the email message with your website name and a message
                 email_message = f"Hello, This is TestSite.com. You are receiving this email to verify your account. Your OTP is below:<br><br>"
@@ -662,11 +798,13 @@ def password_reset():
 
                 return redirect(url_for('password_reset_verification'))
         else:
-            return ({"message": "Invalid request"}), 400
+            # Log an invalid request attempt
+            logger.warning('Invalid password reset request.')
+            return ({"message": "Invalid request"}, 400)
 
-    # Display the form for GET requests
+    # Log that the password reset form was displayed
+    logger.info('Password reset form displayed for GET request.')
     return render_template('password_reset.html')
-
 
 @app.route("/password_reset_verification", methods=["GET", "POST"])
 def password_reset_verification():
@@ -686,11 +824,9 @@ def password_reset_verification():
 
     return render_template("password_reset_verification.html")
 
-
 @app.route('/display_reset_password')
 def display_reset_password():
     return render_template('reset_password.html')
-
 
 @app.route('/reset_password', methods=['POST'])
 def reset_password():
@@ -704,16 +840,27 @@ def reset_password():
             username = session['username']
             # Establish a connection to your SQLite database file.
             connection = sqlite3.connect("verfications_database.db")
-            # Create a cursor using the connection.
             cursor = connection.cursor()
             cursor.execute("UPDATE accounts SET password = ? WHERE username = ?", (hashed_password, username))
             connection.commit()
+
+            # Log the password change event
+            logger.info(f'Password changed for username: {username}, IP Address: {request.remote_addr}')
+
+            # Send a password change alert email
+            password_change_alert_subject = "Password Change Alert"
+            password_change_alert_body = f"Password changed for username: {username}\nIP Address: {request.remote_addr}"
+            send_alert_email(password_change_alert_subject, password_change_alert_body, session['user_email'])
 
             return redirect(url_for('login'))
         else:
             return {"message": "Passwords do not match"}, 400
     else:
+        # Log an invalid request attempt
+        logger.warning('Invalid password reset request.')
         return {"message": "Invalid request"}, 400
+
+
 
 
 # Function to check if a password change is required for a user
@@ -816,8 +963,8 @@ def change_password():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
-    # app.run(debug=True, host='0.0.0.0')
+    # app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
 
     # # Check if a custom port was provided as a command-line argument
     # if len(sys.argv) > 1:
