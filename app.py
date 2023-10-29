@@ -45,24 +45,39 @@ jwt = JWTManager(app)
 
 
 # Set up logger configuration
+# Determine the directory where logs will be stored
 logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-os.makedirs(logs_dir, exist_ok=True)
 
-log_file = os.path.join(logs_dir, f'{date.today()}.log')
+# Get the current year and month
+current_year = date.today().strftime('%Y')
+current_month = date.today().strftime('%m')
 
+# Create directories for the current year and month inside the 'logs' directory
+year_month_dir = os.path.join(logs_dir, current_year, current_month)
+os.makedirs(year_month_dir, exist_ok=True)
+
+# Define the log file name using today's date
+log_file = os.path.join(year_month_dir, f'{date.today()}.log')
+
+# Create a RotatingFileHandler with log file rotation settings
+# A RotatingFileHandler allows log files to rotate when they reach a certain size
 log_handler = RotatingFileHandler(log_file, maxBytes=1024 * 1024, backupCount=5)
-log_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s [%(module)s:%(lineno)d] %(message)s'))
+# In this case, log files will rotate when they reach 1 MB, and up to 5 backups will be kept.
 
+# Set the log message format using a formatter with a newline character
+log_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s [%(module)s:%(lineno)d] %(message)s\n'))
+# This format includes timestamp, log level (e.g., INFO, WARNING), the module name, and line number.
+
+# Create a logger and set its level to INFO
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addHandler(log_handler)
+# The logger is the central object for logging, and here, it's configured to log messages with INFO level and higher.
 
-# Delete older log files
-for filename in os.listdir(logs_dir):
-    if filename.endswith('.log'):
-        filepath = os.path.join(logs_dir, filename)
-        if filepath != log_file:
-            os.remove(filepath)
+# Add the RotatingFileHandler to the logger
+logger.addHandler(log_handler)
+# This step associates the RotatingFileHandler with the logger so that log messages are written to the log file.
+
+# Now, you have a logger set up to log messages at the INFO level to a log file that rotates when it reaches 1 MB, keeping up to 5 backups.
 
 
 # SQLite Configuration
