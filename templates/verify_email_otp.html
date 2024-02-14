@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Email OTP Verification</title>
+    <style>
+        .live-time {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Live Time Display -->
+    <div class="live-time" id="live-time"></div>
+
+    <h1>Challenge</h1>
+    <form action="/verify_email_otp" accept-charset="UTF-8" method="post">
+        <div>
+            <label>Enter the code you were sent:</label>
+            <input name="otp" id="token" required>
+        </div>
+        <button name="button" type="submit">Verify</button>
+    </form>
+
+    {% if error_message %}
+        <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='livetime.js') }}"></script>
+
+</body>
+</html>

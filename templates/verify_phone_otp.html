@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phone Verification</title>
+</head>
+
+<body>
+    <!-- Page heading -->
+    <h1>Challenge</h1>
+
+    <!-- Verification form -->
+    <form action="/verify_phone_otp" accept-charset="UTF-8" method="post">
+        <div>
+            <!-- Label and input for entering the verification code -->
+            <label>Enter the code you were sent:</label>
+            <input name="token" id="token">
+        </div>
+        <br>
+        <!-- Submit button for the form -->
+        <button name="button" type="submit">Verify</button>
+    </form>
+
+<!--    <br>-->
+<!--    &lt;!&ndash; Display success message if it exists &ndash;&gt;-->
+<!--    {% if success_message %}-->
+<!--    <div style="font-weight: bold; color: black;">{{ success_message }}</div>-->
+<!--    {% endif %}-->
+
+<!--    &lt;!&ndash; Back link to the phone verification page &ndash;&gt;-->
+<!--    <br>-->
+
+<!--    <a href="/">Go back and test again</a>-->
+
+</body>
+</html>
