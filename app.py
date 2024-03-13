@@ -845,8 +845,23 @@ def reset_password():
     if 'new_password' in request.form and 'confirm_password' in request.form:
         new_password = request.form['new_password']
         confirm_password = request.form['confirm_password']
+        
+        # Get user data from session
+        first_name = session.get('first_name')
+        last_name = session.get('last_name')
 
         if new_password == confirm_password:
+            # Check if password contains the user's first name or last name
+            if (first_name and first_name.lower() in new_password.lower()) or \
+               (last_name and last_name.lower() in new_password.lower()):
+                return render_template('reset_password.html', error_message="Password cannot contain your first name or last name.")
+
+            # Check for additional password policies, such as minimum length, special characters, etc.
+            if len(new_password) < 8:
+                return render_template('reset_password.html', error_message="Password must be at least 8 characters long.")
+            if not re.search(r'[A-Z]', new_password) or not re.search(r'[a-z]', new_password) or not re.search(r'[0-9]', new_password):
+                return render_template('reset_password.html', error_message="Password must contain at least one uppercase letter, one lowercase letter, and one digit.")
+
             # Generate hash for the new password
             hashed_password = generate_password_hash(new_password)
 
