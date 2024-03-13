@@ -11,7 +11,7 @@
 </head>
 <body>
     <div id="blocked-popup" class="popup" style="display: none;">
-        <p>You are blocked and cannot log in for <span class="red-text">{{ remaining_time }}</span>. Please try again later.</p>
+        <p>You are blocked and cannot log in for <span class="red-text"><strong id="remaining-time"></strong></span>. Please try again later.</p>
     </div>
     <!-- Add your HTML content here -->
 </body>
@@ -22,6 +22,15 @@
     window.addEventListener('DOMContentLoaded', (event) => {
         // Get the remaining time from the server-side variable
         const remainingTime = '{{ remaining_time }}';
+
+        // Convert remaining time from seconds to minutes and seconds
+        const minutes = Math.floor(remainingTime / 60);
+        const seconds = remainingTime % 60;
+        const formattedTime = `<strong>${minutes} minutes and ${seconds} seconds</strong>`;
+
+        // Set the formatted remaining time to the span element
+        const remainingTimeSpan = document.getElementById('remaining-time');
+        remainingTimeSpan.innerHTML = formattedTime;
 
         // Check if the remaining time is not 'Block has expired'
         if (remainingTime !== 'Block has expired') {

@@ -74,7 +74,7 @@ logger.addHandler(log_handler)
 # Function to create the database and table
 def create_accounts():
     # Establish a connection to the database file
-    conn = sqlite3.connect('verfications_database.db')
+    conn = sqlite3.connect('verifications_database.db')
     c = conn.cursor()
 
     # Create the 'accounts' table if it doesn't exist
@@ -103,7 +103,7 @@ create_accounts()
 
 # Create a new table to track password changes
 def create_password_history_table():
-    conn = sqlite3.connect('verfications_database.db')
+    conn = sqlite3.connect('verifications_database.db')
     c = conn.cursor()
 
     c.execute('''
@@ -126,7 +126,7 @@ create_password_history_table()
 
 # Create a new table to track location history
 def create_location_history_table():
-    conn = sqlite3.connect('verfications_database.db')
+    conn = sqlite3.connect('verifications_database.db')
     c = conn.cursor()
 
     c.execute('''
@@ -151,7 +151,7 @@ create_location_history_table()
 
 # Create a new table to track login/logout history
 def create_login_history_table():
-    conn = sqlite3.connect('verfications_database.db')
+    conn = sqlite3.connect('verifications_database.db')
     c = conn.cursor()
 
     c.execute('''
@@ -179,7 +179,7 @@ create_location_history_table()
 
 # Create a new table to track password change history
 def create_password_change_history_table():
-    conn = sqlite3.connect('verfications_database.db')
+    conn = sqlite3.connect('verifications_database.db')
     c = conn.cursor()
 
     c.execute('''
@@ -202,7 +202,7 @@ create_password_change_history_table()
 # Function to create a new table to track login attempts and block status
 def create_login_attempts_table():
     # Connect to the SQLite database or create it if it doesn't exist
-    conn = sqlite3.connect('verfications_database.db')
+    conn = sqlite3.connect('verifications_database.db')
 
     # Create a cursor object to interact with the database
     c = conn.cursor()
@@ -228,7 +228,7 @@ create_login_attempts_table()
 
 # Function to calculate the remaining block time for a user
 def get_remaining_block_time(username):
-    connection = sqlite3.connect("verfications_database.db")
+    connection = sqlite3.connect("verifications_database.db")
     cursor = connection.cursor()
 
     # Query the database to get the timestamp of the user's last block
@@ -288,8 +288,8 @@ def blocked(username):
     next_login_attempt_time = datetime.datetime.now() + datetime.timedelta(seconds=remaining_time)
     
     # Format the next login attempt time as a user-friendly string
-    next_login_attempt_time_str = next_login_attempt_time.strftime('%Y-%m-d %H:%M:%S')
-    
+    next_login_attempt_time_str = next_login_attempt_time.strftime('%Y-%m-%d %H:%M:%S')
+
     # Format the next login attempt time to be bold and red in the email message
     next_login_attempt_time_str_formatted = f'<span style="color: red; font-weight: bold;">{next_login_attempt_time_str}</span>'
     
@@ -308,9 +308,6 @@ def blocked(username):
     mail.send(msg)
 
     return render_template('blocked.html', remaining_time=remaining_time)
-
-
-
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -333,7 +330,7 @@ def login():
             return redirect(url_for('blocked', username=username))
 
         # Establish a connection to your SQLite database file.
-        connection = sqlite3.connect("verfications_database.db")
+        connection = sqlite3.connect("verifications_database.db")
         cursor = connection.cursor()
 
         # Query the database to get the user details based on the provided username
@@ -405,12 +402,9 @@ def login():
 
 # The login alert email sending is now attempted within the route
 
-
-
-
 # Function to log login history
 def log_login_history(user_id, device_info):
-    connection = sqlite3.connect("verfications_database.db")
+    connection = sqlite3.connect("verifications_database.db")
     cursor = connection.cursor()
     login_timestamp = datetime.datetime.now()
 
@@ -426,7 +420,7 @@ def log_login_history(user_id, device_info):
 
 # Function to check if a user is blocked based on login attempts
 def check_user_blocked(username):
-    connection = sqlite3.connect("verfications_database.db")
+    connection = sqlite3.connect("verifications_database.db")
     cursor = connection.cursor()
 
     # Check if the user has exceeded the maximum login attempts (5 attempts)
@@ -442,7 +436,7 @@ def check_user_blocked(username):
 
 # Function to reset login attempts for a user
 def reset_login_attempts(username):
-    connection = sqlite3.connect("verfications_database.db")
+    connection = sqlite3.connect("verifications_database.db")
     cursor = connection.cursor()
 
     # Reset login attempts for the user
@@ -454,7 +448,7 @@ def reset_login_attempts(username):
 
 # Function to increment login attempts for a user
 def increment_login_attempts(username):
-    connection = sqlite3.connect("verfications_database.db")
+    connection = sqlite3.connect("verifications_database.db")
     cursor = connection.cursor()
 
     current_timestamp = datetime.datetime.now()  # Get the current timestamp
@@ -494,7 +488,7 @@ def register():
         password_strength = zxcvbn(password)
 
         # Check if the username already exists in the database
-        connection = sqlite3.connect("verfications_database.db")
+        connection = sqlite3.connect("verifications_database.db")
         cursor = connection.cursor()
         cursor.execute('SELECT * FROM accounts WHERE username = ?', (username,))
         existing_username = cursor.fetchone()
@@ -536,10 +530,21 @@ def register():
         else:
             # Email, username, and phone number are not registered, proceed with registration
             hashed_password = generate_password_hash(password)
+
+            # Insert the initial hash into the password_history table
+            cursor.execute(
+                'INSERT INTO password_history(user_id, password_hash, change_timestamp) VALUES '
+                '((SELECT id FROM accounts WHERE username = ?), ?, ?)',
+                (username, hashed_password, created_on)
+            )
+            connection.commit()
+
+            # Insert the user data into the accounts table
             cursor.execute(
                 'INSERT INTO accounts(username, password, email, firstname, lastname, phonenumber, phone_verified, created_on) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                (username, hashed_password, email, firstname, lastname, phonenumber, False, created_on))
+                (username, hashed_password, email, firstname, lastname, phonenumber, False, created_on)
+            )
             connection.commit()
 
             session['registered'] = True
@@ -560,8 +565,6 @@ def register():
     return render_template('register.html', msg=msg)
 
 
-
-
 @app.route('/pythonlogin/logout')
 def logout():
     if 'loggedin' in session:
@@ -570,7 +573,7 @@ def logout():
         device_info = request.user_agent.string
         logout_timestamp = datetime.datetime.now()
 
-        connection = sqlite3.connect("verfications_database.db")
+        connection = sqlite3.connect("verifications_database.db")
         cursor = connection.cursor()
         cursor.execute(
             "INSERT INTO login_history (user_id, device_info, login_timestamp, logout_timestamp) VALUES (?, ?, ?, ?)",
@@ -639,7 +642,7 @@ def home():
 # Function to store location history in the database
 def store_location_history(user_id, latitude, longitude):
     try:
-        connection = sqlite3.connect("verfications_database.db")
+        connection = sqlite3.connect("verifications_database.db")
         cursor = connection.cursor()
         cursor.execute(
             "INSERT INTO location_history (user_id, latitude, longitude, access_granted, timestamp) VALUES (?, ?, ?, ?, ?)",
@@ -677,7 +680,7 @@ def profile():
         print("Session ID:", session['id'])
 
         # Establish a connection to your SQLite database file.
-        connection = sqlite3.connect("verfications_database.db")
+        connection = sqlite3.connect("verifications_database.db")
         # Create a cursor using the connection.
         cursor = connection.cursor()
         # Define your SQL query with a placeholder for the session ID.
@@ -741,7 +744,7 @@ def verify_email_otp():
             # message = "Email verification successful"
             # Update phone_verified in the database
             # Establish a connection to your SQLite database file.
-            connection = sqlite3.connect("verfications_database.db")
+            connection = sqlite3.connect("verifications_database.db")
             # Create a cursor using the connection.
             cursor = connection.cursor()
             cursor.execute("UPDATE accounts SET email_verified = ? WHERE email = ?", (True, user_email))
@@ -770,7 +773,7 @@ def password_reset():
             logger.info(f'Password reset requested for username: {user_name}, Email: {user_email}')
 
             # Establish a connection to your SQLite database file.
-            connection = sqlite3.connect("verfications_database.db")
+            connection = sqlite3.connect("verifications_database.db")
             cursor = connection.cursor()
             cursor.execute("SELECT * FROM accounts WHERE username = ? AND email = ?", (user_name, user_email))
             details = cursor.fetchone()
@@ -830,10 +833,13 @@ def password_reset_verification():
 
     return render_template("password_reset_verification.html")
 
+# Flask route to display the reset password page
 @app.route('/display_reset_password')
 def display_reset_password():
     return render_template('reset_password.html')
 
+
+# Flask route to handle the password reset process
 @app.route('/reset_password', methods=['POST'])
 def reset_password():
     if 'new_password' in request.form and 'confirm_password' in request.form:
@@ -841,37 +847,52 @@ def reset_password():
         confirm_password = request.form['confirm_password']
 
         if new_password == confirm_password:
+            # Generate hash for the new password
             hashed_password = generate_password_hash(new_password)
 
-            username = session['username']
-            # Establish a connection to your SQLite database file.
-            connection = sqlite3.connect("verfications_database.db")
+            # Get the email from the session
+            email = session.get('user_email')
+
+            # Check if the email exists in the accounts table
+            connection = sqlite3.connect("verifications_database.db")
             cursor = connection.cursor()
-            cursor.execute("UPDATE accounts SET password = ? WHERE username = ?", (hashed_password, username))
-            connection.commit()
 
-            # Log the password change event
-            logger.info(f'Password changed for username: {username}, IP Address: {request.remote_addr}')
+            cursor.execute("SELECT id FROM accounts WHERE email = ?", (email,))
+            user_id = cursor.fetchone()
 
-            # Send a password change alert email
-            password_change_alert_subject = "Password Change Alert"
-            password_change_alert_body = f"Password changed for username: {username}\nIP Address: {request.remote_addr}"
-            send_alert_email(password_change_alert_subject, password_change_alert_body, session['user_email'])
+            if not user_id:
+                return {"message": "Invalid email"}, 400
 
-            return redirect(url_for('login'))
+            # Check if the new password matches any of the previous passwords
+            cursor.execute("SELECT password_hash FROM password_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 1", (user_id[0],))
+            previous_password_hash = cursor.fetchone()
+
+            if previous_password_hash and check_password_hash(previous_password_hash[0], new_password):
+                # If the new password matches the previous one, return a proper warning message
+                return render_template('reset_password.html', error_message="Please choose a different password. You cannot reuse your previous password.")
+            else:
+                # Update the password in the 'accounts' table
+                cursor.execute("UPDATE accounts SET password = ? WHERE email = ?", (hashed_password, email))
+                
+                # Insert the updated password hash into the password_history table
+                cursor.execute("INSERT INTO password_history(user_id, password_hash, change_timestamp) VALUES (?, ?, ?)",
+                               (user_id[0], hashed_password, datetime.datetime.now()))
+
+                connection.commit()
+                connection.close()
+
+                return redirect(url_for('login'))
         else:
-            return {"message": "Passwords do not match"}, 400
+            return render_template('reset_password.html', error_message="Passwords do not match.")
     else:
-        # Log an invalid request attempt
         logger.warning('Invalid password reset request.')
         return {"message": "Invalid request"}, 400
 
 
 
-
 # Function to check if a password change is required for a user
 def is_password_change_required(user_id):
-    connection = sqlite3.connect("verfications_database.db")
+    connection = sqlite3.connect("verifications_database.db")
     cursor = connection.cursor()
 
     # Get the timestamp of the last password change
@@ -904,9 +925,10 @@ def is_password_change_required(user_id):
 
 # Function to check if a password is in the password history
 def is_password_in_history(user_id, new_password):
-    connection = sqlite3.connect("verfications_database.db")
+    connection = sqlite3.connect("verifications_database.db")
     cursor = connection.cursor()
 
+    # Fetch the last 5 password hashes from the password history
     cursor.execute(
         "SELECT password_hash FROM password_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 5",
         (user_id,))
@@ -914,6 +936,7 @@ def is_password_in_history(user_id, new_password):
 
     connection.close()
 
+    # Check if the new password matches any of the previous passwords
     for password_hash in previous_password_hashes:
         if check_password_hash(password_hash[0], new_password):
             return True
@@ -921,6 +944,10 @@ def is_password_in_history(user_id, new_password):
     return False
 
 
+
+############ 
+### may be this function not useing ### 
+############
 @app.route('/change_password', methods=['GET', 'POST'])
 def change_password():
     if 'loggedin' in session:
@@ -937,7 +964,7 @@ def change_password():
                         hashed_password = generate_password_hash(new_password)
 
                         # Update the password in the 'accounts' table
-                        connection = sqlite3.connect("verfications_database.db")
+                        connection = sqlite3.connect("verifications_database.db")
                         cursor = connection.cursor()
                         cursor.execute("UPDATE accounts SET password_hash = ? WHERE id = ?", (hashed_password, user_id))
 
