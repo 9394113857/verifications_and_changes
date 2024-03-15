@@ -1,0 +1,80 @@
+{% extends 'layout.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Welcome to the Home Page</h2>
+    {% if session.loggedin %}
+        <div class="user-info">
+            <h3>Greetings, {{ session.username }}!</h3>
+            <p>You are logged in.</p>
+        </div>
+        <div class="location-access">
+            <h3>Location Access</h3>
+            <p>Click the button below to allow location access:</p>
+            <button id="allow-location" class="btn btn-primary">Allow Location Access</button>
+            <button id="deny-location" class="btn btn-danger">Deny Location Access</button>
+            <p id="location-status"></p>
+        </div>
+    {% else %}
+        <div class="not-logged-in">
+            <h3>You are not logged in</h3>
+            <p>Please <a href="{{ url_for('login') }}">log in</a> to access this page.</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Separate container for the countdown timer -->
+<div id="countdown-container">
+    Logging out in <span id="countdown-timer"></span>
+</div>
+
+<!-- Include the logout timer JavaScript file -->
+<script src="{{ url_for('static', filename='logout_timer.js') }}"></script>
+
+<script>
+    var timer;
+    var countdownElement;
+
+    function startLogoutTimer() {
+        timer = setTimeout(logoutUser, 10000); // 10 seconds
+        updateCountdown();
+    }
+
+    function resetLogoutTimer() {
+        clearTimeout(timer);
+        startLogoutTimer();
+    }
+
+    function logoutUser() {
+        window.location.href = "/pythonlogin/logout";
+    }
+
+    function updateCountdown() {
+        var timeLeft = 10; // Initial countdown value in seconds
+        countdownElement = document.getElementById("countdown-timer");
+        countdownElement.textContent = formatTime(timeLeft);
+        var interval = setInterval(function() {
+            timeLeft--;
+            countdownElement.textContent = formatTime(timeLeft);
+            if (timeLeft <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+    }
+
+    function formatTime(seconds) {
+        var mins = Math.floor(seconds / 60);
+        var secs = seconds % 60;
+        return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        startLogoutTimer();
+        document.addEventListener("mousemove", resetLogoutTimer);
+        document.addEventListener("keypress", resetLogoutTimer);
+    });
+</script>
+
+{% endblock %}

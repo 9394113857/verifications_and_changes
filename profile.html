@@ -1,0 +1,80 @@
+{% extends 'layout.html' %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>User Profile</h2>
+    <table class="table table-bordered">
+        <tr>
+            <th>Username</th>
+            <td>{{ account[1] }}</td>  {# Assuming username is at index 1 in the tuple #}
+        </tr>
+        <tr>
+            <th>Email</th>
+            <td>{{ account[3] }}</td>  {# Assuming email is at index 3 in the tuple #}
+        </tr>
+        <tr>
+            <th>First Name</th>
+            <td>{{ account[4] }}</td>  {# Assuming firstname is at index 4 in the tuple #}
+        </tr>
+        <tr>
+            <th>Last Name</th>
+            <td>{{ account[5] }}</td>  {# Assuming lastname is at index 5 in the tuple #}
+        </tr>
+        <tr>
+            <th>Phone Number</th>
+            <td>{{ account[6] }}</td>  {# Assuming phonenumber is at index 6 in the tuple #}
+        </tr>
+    </table>
+</div>
+
+<!-- Include the logout timer JavaScript code -->
+<div id="countdown"> <!-- Adding countdown element -->
+    Logging out in <span id="countdown-timer"></span>
+</div>
+
+<script>
+    var timer;
+    var countdownElement;
+
+    function startLogoutTimer() {
+        timer = setTimeout(logoutUser, 10000); // 10 seconds
+        updateCountdown();
+    }
+
+    function resetLogoutTimer() {
+        clearTimeout(timer);
+        startLogoutTimer();
+    }
+
+    function logoutUser() {
+        window.location.href = "/pythonlogin/logout"; // Adjusted logout route
+    }
+
+    function updateCountdown() {
+        var timeLeft = 10; // Initial countdown value in seconds
+        countdownElement.textContent = formatTime(timeLeft);
+        var interval = setInterval(function() {
+            timeLeft--;
+            countdownElement.textContent = formatTime(timeLeft);
+            if (timeLeft <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+    }
+
+    function formatTime(seconds) {
+        var mins = Math.floor(seconds / 60);
+        var secs = seconds % 60;
+        return mins.toString().padStart(2, '0') + ":" + secs.toString().padStart(2, '0');
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        countdownElement = document.getElementById("countdown-timer");
+        startLogoutTimer();
+        document.addEventListener("mousemove", resetLogoutTimer);
+        document.addEventListener("keypress", resetLogoutTimer);
+    });
+</script>
+{% endblock %}
