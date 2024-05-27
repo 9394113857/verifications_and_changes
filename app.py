@@ -1,21 +1,15 @@
-import logging
-import os
-import configparser  # Added to read the configuration file
-from datetime import date, timedelta
 import datetime
-from logging.handlers import RotatingFileHandler
-from email.mime.text import MIMEText
-
-import re
 import sqlite3
-from random import randint
-from zxcvbn import zxcvbn
-
-from authy.api import AuthyApiClient
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from flask_jwt_extended import JWTManager
+import configparser
+import os
+import logging
+from logging.handlers import RotatingFileHandler
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_mail import Mail, Message
+from flask_jwt_extended import JWTManager, create_access_token, decode_token
 from werkzeug.security import generate_password_hash, check_password_hash
+import re
+from authy.api import AuthyApiClient  # Add this import statement
 
 # Load email and Authy API credentials from the configuration file
 config = configparser.ConfigParser()
@@ -28,6 +22,7 @@ app.secret_key = 'your_secret_key'
 authy_api_key = config['authy']['API_KEY']
 api = AuthyApiClient(authy_api_key)
 
+# Flask-Mail Configuration
 app.config["MAIL_SERVER"] = 'smtp.gmail.com'
 app.config["MAIL_PORT"] = 465
 app.config["MAIL_USERNAME"] = config['email']['USERNAME']
@@ -43,20 +38,19 @@ mail = Mail(app)
 app.config['JWT_SECRET_KEY'] = 'super-secret'
 jwt = JWTManager(app)
 
-
 # Set up logger configuration
 logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 
 # Get the current year and month
-current_year = date.today().strftime('%Y')
-current_month = date.today().strftime('%m')
+current_year = datetime.date.today().strftime('%Y')
+current_month = datetime.date.today().strftime('%m')
 
 # Create directories for the current year and month
 year_month_dir = os.path.join(logs_dir, current_year, current_month)
 os.makedirs(year_month_dir, exist_ok=True)
 
 # Define the log file name using today's date
-log_file = os.path.join(year_month_dir, f'{date.today()}.log')
+log_file = os.path.join(year_month_dir, f'{datetime.date.today()}.log')
 
 # Create a RotatingFileHandler with log file rotation settings
 log_handler = RotatingFileHandler(log_file, maxBytes=1024 * 1024, backupCount=5)
@@ -762,6 +756,7 @@ def verify_email_otp():
 
 ##########
 
+# Route for password reset request
 @app.route('/password_reset', methods=['GET', 'POST'])
 def password_reset():
     if request.method == 'POST':
@@ -769,139 +764,82 @@ def password_reset():
             user_name = request.form['username']
             user_email = request.form['email']
 
-            # Log the attempt to reset the password
-            logger.info(f'Password reset requested for username: {user_name}, Email: {user_email}')
-
-            # Establish a connection to your SQLite database file.
+            # Check if the user exists in the database
             connection = sqlite3.connect("verifications_database.db")
             cursor = connection.cursor()
             cursor.execute("SELECT * FROM accounts WHERE username = ? AND email = ?", (user_name, user_email))
             details = cursor.fetchone()
+            connection.close()
+
             if details is None:
-                # Log the unsuccessful password reset attempt
-                logger.warning(f'Password reset failed for username: {user_name}, Email: {user_email}')
-                return ({"message": "Invalid username or email address"}, 401)
+                return {"message": "Invalid username or email address"}, 401
             else:
-                session['username'] = user_name
-                session['user_email'] = user_email  # Store the email in the session
+                # Generate JWT
+                payload = {
+                    'username': user_name,
+                    'email': user_email,
+                    'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+                }
+                token = create_access_token(identity=payload)
 
-                # Generate a new 6-digit OTP
-                otp = ''.join([str(randint(0, 9)) for _ in range(6)])
+                # Send the JWT link via email
+                reset_link = f"http://localhost:5000/reset_password?token={token}"
+                email_message = f"Hello, This is TestSite.com. You are receiving this email to reset your password. Please use the link below:<br><br>"
+                email_message += f'<a href="{reset_link}">{reset_link}</a>'
 
-                # Store the OTP in the session for later validation
-                session['user_otp'] = otp
-
-                # Log the OTP generation event
-                logger.info(f'OTP generated for password reset for username: {user_name}')
-
-                # Customize the email message with your website name and a message
-                email_message = f"Hello, This is TestSite.com. You are receiving this email to verify your account. Your OTP is below:<br><br>"
-                email_message += f'<h1 style="color: red; font-size: 36px; font-weight: bold;">{otp}</h1>'
-                email_message += "<br><br>Please use this OTP to validate your account on TestSite.com."
-
-                # Create a message containing the customized email message and send it to the specified email
-                msg = Message(subject='OTP Verification for TestSite.com', sender='TestSite.com',
-                              recipients=[user_email])
+                msg = Message(subject='Password Reset for TestSite.com', sender=app.config['MAIL_DEFAULT_SENDER'], recipients=[user_email])
                 msg.html = email_message
                 mail.send(msg)
 
-                return redirect(url_for('password_reset_verification'))
-        else:
-            # Log an invalid request attempt
-            logger.warning('Invalid password reset request.')
-            return ({"message": "Invalid request"}, 400)
+                return {"message": "Password reset link sent to your email"}
 
-    # Log that the password reset form was displayed
-    logger.info('Password reset form displayed for GET request.')
+        else:
+            return {"message": "Invalid request"}, 400
     return render_template('password_reset.html')
 
-@app.route("/password_reset_verification", methods=["GET", "POST"])
-def password_reset_verification():
-    if request.method == "POST":
 
-        user_otp = request.form.get("token")
-
-        # Retrieve the stored OTP from the session
-        stored_otp = session.get('user_otp')
-
-        # Check if the user-entered OTP matches the stored OTP
-        if user_otp == stored_otp:
-            return redirect(url_for('display_reset_password'))
-        else:
-            error_message = "Invalid verification code. Please try again."
-            return render_template("password_reset_verification.html", error_message=error_message)
-
-    return render_template("password_reset_verification.html")
-
-# Flask route to display the reset password page
-@app.route('/display_reset_password')
-def display_reset_password():
-    return render_template('reset_password.html')
-
-
-# Flask route to handle the password reset process
-@app.route('/reset_password', methods=['POST'])
+# Route for resetting password
+@app.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
-    if 'new_password' in request.form and 'confirm_password' in request.form:
+    token = request.args.get('token') if request.method == 'GET' else request.form.get('token')
+    if not token:
+        return {"message": "Token is missing"}, 400
+
+    try:
+        payload = decode_token(token)
+        email = payload['identity']['email']
+        username = payload['identity']['username']
+    except Exception as e:
+        logger.error(f"Error decoding token: {e}")
+        return {"message": "Invalid or expired token"}, 400
+
+    if request.method == 'POST':
         new_password = request.form['new_password']
         confirm_password = request.form['confirm_password']
         
-        # Get user data from session
-        first_name = session.get('first_name')
-        last_name = session.get('last_name')
-
         if new_password == confirm_password:
-            # Check if password contains the user's first name or last name
-            if (first_name and first_name.lower() in new_password.lower()) or \
-               (last_name and last_name.lower() in new_password.lower()):
-                return render_template('reset_password.html', error_message="Password cannot contain your first name or last name.")
+            # Password validation (length, character types, etc.)
+            if len(new_password) < 8 or not re.search(r'[A-Z]', new_password) or not re.search(r'[a-z]', new_password) or not re.search(r'[0-9]', new_password):
+                return render_template('reset_password.html', error_message="Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a digit.", token=token)
 
-            # Check for additional password policies, such as minimum length, special characters, etc.
-            if len(new_password) < 8:
-                return render_template('reset_password.html', error_message="Password must be at least 8 characters long.")
-            if not re.search(r'[A-Z]', new_password) or not re.search(r'[a-z]', new_password) or not re.search(r'[0-9]', new_password):
-                return render_template('reset_password.html', error_message="Password must contain at least one uppercase letter, one lowercase letter, and one digit.")
-
-            # Generate hash for the new password
             hashed_password = generate_password_hash(new_password)
-
-            # Get the email from the session
-            email = session.get('user_email')
-
-            # Check if the email exists in the accounts table
+            
+            # Update the password in the 'accounts' table
             connection = sqlite3.connect("verifications_database.db")
             cursor = connection.cursor()
+            cursor.execute("UPDATE accounts SET password = ? WHERE email = ?", (hashed_password, email))
+            
+            # Insert the updated password hash into the password_history table
+            cursor.execute("INSERT INTO password_history(user_id, password_hash, change_timestamp) VALUES (?, ?, ?)",
+                           (details[0], hashed_password, datetime.datetime.now()))
+            connection.commit()
+            connection.close()
 
-            cursor.execute("SELECT id FROM accounts WHERE email = ?", (email,))
-            user_id = cursor.fetchone()
-
-            if not user_id:
-                return {"message": "Invalid email"}, 400
-
-            # Check if the new password matches any of the previous passwords
-            cursor.execute("SELECT password_hash FROM password_history WHERE user_id = ? ORDER BY change_timestamp DESC LIMIT 1", (user_id[0],))
-            previous_password_hash = cursor.fetchone()
-
-            if previous_password_hash and check_password_hash(previous_password_hash[0], new_password):
-                # If the new password matches the previous one, return a proper warning message
-                return render_template('reset_password.html', error_message="Please choose a different password. You cannot reuse your previous password.")
-            else:
-                # Update the password in the 'accounts' table
-                cursor.execute("UPDATE accounts SET password = ? WHERE email = ?", (hashed_password, email))
-                
-                # Insert the updated password hash into the password_history table
-                cursor.execute("INSERT INTO password_history(user_id, password_hash, change_timestamp) VALUES (?, ?, ?)",
-                               (user_id[0], hashed_password, datetime.datetime.now()))
-
-                connection.commit()
-                connection.close()
-
-                return redirect(url_for('login'))
+            # Redirect to login page after password reset
+            return redirect(url_for('login'))
         else:
-            return render_template('reset_password.html', error_message="Passwords do not match.")
-    else:
-        logger.warning('Invalid password reset request.')
-        return {"message": "Invalid request"}, 400
+            return render_template('reset_password.html', error_message="Passwords do not match.", token=token)
+    return render_template('reset_password.html', token=token)
 
 
 

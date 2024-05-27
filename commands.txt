@@ -1,0 +1,9 @@
+PS D:\practice_codes\changes_env\Scripts>
+PS D:\practice_codes\changes_env\Scripts> .\activate
+
+PS D:\practice_codes\verifications_and_changes-jwt-flow>
+PS D:\practice_codes\verifications_and_changes-jwt-flow> py app.py
+
+
+PS D:\practice_codes\changes_env\Scripts> .\deactivate
+PS D:\practice_codes\verifications_and_changes-jwt-flow>
