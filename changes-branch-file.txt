@@ -1,0 +1,8 @@
+# Create a new branch named 'changes'
+git branch changes
+
+# Switch to the 'changes' branch
+git checkout changes
+
+# Alternatively, you can create and switch in one command
+git checkout -b changes
