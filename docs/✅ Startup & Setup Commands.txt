@@ -1,0 +1,17 @@
+# ✅ Create a virtual environment named 'env'
+py -m venv env
+
+# ✅ Activate the virtual environment (Windows)
+.\env\Scripts\activate
+
+# ✅ Upgrade pip to the latest version
+python -m pip install --upgrade pip
+
+# ✅ Install dependencies from requirements.txt
+pip install -r requirements.txt
+
+# ✅ Save the current environment's packages to requirements.txt
+pip freeze > requirements.txt
+
+# ✅ Run the application
+py app.py
